@@ -107,6 +107,18 @@ export function computeLayout(input: LayoutInput): LayoutResult {
     i += frames.length
   }
 
+  // Clamp all frames to page content area (prevent overflow)
+  for (const page of pages) {
+    for (const f of page.frames) {
+      const maxX = W - m.right - f.w
+      const maxY = H - m.bottom - f.h
+      if (f.x < m.left) f.x = m.left
+      if (f.y < m.top) f.y = m.top
+      if (f.x > maxX) f.x = Math.max(m.left, maxX)
+      if (f.y > maxY) f.y = Math.max(m.top, maxY)
+    }
+  }
+
   return { pages, warnings }
 }
 
