@@ -67,7 +67,7 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      style={{ width: '100%', height: 'auto', maxWidth: W * SCALE, background: project.pageSpec.background, border: '1px solid #3f3f46', touchAction: 'none' }}
+      style={{ width: 600, height: 'auto', background: project.pageSpec.background, border: '1px solid #3f3f46', touchAction: 'none' }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
@@ -90,9 +90,9 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
             />
             {thumbnails.get(f.photoId) && (
               <foreignObject x={f.x} y={f.y} width={f.w} height={f.h} pointerEvents="none">
-                <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
                   <img src={`data:image/webp;base64,${thumbnails.get(f.photoId)}`} alt=""
-                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 </div>
               </foreignObject>
             )}
