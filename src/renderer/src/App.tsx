@@ -262,8 +262,11 @@ export default function App() {
                 const ph = project.photos.find(p => p.id === pid)
                 if (!ph) return null
                 return (
-                  <div key={pid} draggable onDragStart={e => e.dataTransfer.setData('text/plain', pid)} className="px-2 py-0.5 rounded hover:bg-neutral-800 flex items-center justify-between group text-xs cursor-grab">
-                    <span className="truncate">{ph.sourcePath?.split(/[\\/]/).pop() ?? pid}</span>
+                  <div key={pid} draggable onDragStart={e => e.dataTransfer.setData('text/plain', pid)} className="px-1 py-0.5 rounded hover:bg-neutral-800 flex items-center gap-1.5 group text-xs cursor-grab">
+                    {thumbnails.get(pid) && (
+                      <img src={`data:image/webp;base64,${thumbnails.get(pid)}`} alt="" className="w-5 h-5 object-cover rounded shrink-0" />
+                    )}
+                    <span className="truncate flex-1">{ph.sourcePath?.split(/[\\/]/).pop() ?? pid}</span>
                     <button className="text-neutral-500 hover:text-red-400 opacity-0 group-hover:opacity-100" onClick={() => removePhoto(pid)}>×</button>
                   </div>
                 )
