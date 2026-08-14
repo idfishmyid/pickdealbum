@@ -9,7 +9,11 @@ import { useEditor } from '../store/editor.js'
 
 const SCALE = 0.5 // preview scale: 3035px → ~1518px CSS
 
-export function CanvasPage({ project, page, thumbnails }: { project: Project; page: Page; thumbnails: Map<string, string> }) {
+export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: {
+  project: Project; page: Page; thumbnails: Map<string, string>
+  swapTargetId: string | null
+  onSwap: (a: string, b: string) => void
+}) {
   const { selectedFrameId, selectFrame, updateFrame } = useEditor()
   const [dragging, setDragging] = useState<null | { id: string; dir: string; startX: number; startY: number; orig: { x: number; y: number; w: number; h: number } }>(null)
 
@@ -52,7 +56,11 @@ export function CanvasPage({ project, page, thumbnails }: { project: Project; pa
         const selected = f.id === selectedFrameId
         const hs = 14 // handle size
         return (
-          <g key={f.id} onPointerDown={(e) => { e.stopPropagation(); selectFrame(f.id) }}>
+          <g key={f.id} onPointerDown={(e) => {
+            e.stopPropagation()
+            if (swapTargetId && swapTargetId !== f.id) { onSwap(swapTargetId, f.id); return }
+            selectFrame(f.id)
+          }}>
             {thumbnails.get(f.photoId) ? (
               <image href={`data:image/webp;base64,${thumbnails.get(f.photoId)}`}
                 x={f.x} y={f.y} width={f.w} height={f.h} preserveAspectRatio="xMidYMid meet"

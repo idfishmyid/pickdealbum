@@ -10,7 +10,12 @@ import { useEditor } from './store/editor.js'
 import { CanvasPage } from './components/CanvasPage.js'
 
 const api = (window as any).electronAPI as {
-  project: { create: (n: string) => Promise<Project>; save: (p: Project) => Promise<void> }
+  project: {
+    create: (n: string) => Promise<Project>
+    save: (p: Project) => Promise<void>
+    list: () => Promise<{ id: string; name: string; createdAt: number; updatedAt: number }[]>
+    get: (id: string) => Promise<Project | null>
+  }
   dialog: { openFiles: () => Promise<string[]> }
   photos: {
     importFiles: (f: string[]) => Promise<{ id: string; sourcePath: string }[]>
@@ -29,19 +34,56 @@ const api = (window as any).electronAPI as {
 export default function App() {
   const {
     project, currentChapterId, currentPageId, selectedFrameId,
-    history, future, newProject, addChapter, selectChapter,
-    addPhotos, removePhoto, selectPage, selectFrame, updateFrame, removeFrame, splitPage, undo, redo,
+    history, future, loadProject, newProject, addChapter, selectChapter,
+    addPhotos, removePhoto, selectPage, selectFrame, updateFrame, removeFrame, swapFrames, splitPage, undo, redo,
   } = useEditor()
   const [photoError, setPhotoError] = useState('')
   const [thumbnails, setThumbnails] = useState<Map<string, string>>(new Map())
+  const [showOpenList, setShowOpenList] = useState(false)
+  const [projectList, setProjectList] = useState<{ id: string; name: string; updatedAt: number }[]>([])
+  const [swapTargetId, setSwapTargetId] = useState<string | null>(null)
   const booted = useRef(false)
 
   // init: new project on mount (persist wiring comes later)
   useEffect(() => { if (!booted.current && !project) { booted.current = true; newProject() } }, [])
 
+  // auto-save: persist project whenever it changes (skip first boot)
+  const savedRef = useRef<string>('')
+  useEffect(() => {
+    if (!project) return
+    const sig = JSON.stringify(project).length + ':' + project.updatedAt
+    if (sig === savedRef.current) return
+    savedRef.current = sig
+    const t = setTimeout(() => { api.project.save(project) }, 400)
+    return () => clearTimeout(t)
+  }, [project])
+
   const saveProject = async () => {
     if (!project) return
     await api.project.save(project)
+  }
+
+  const openProjectList = async () => {
+    const list = await api.project.list()
+    setProjectList(list)
+    setShowOpenList(v => !v)
+  }
+
+  const openProject = async (id: string) => {
+    const p = await api.project.get(id)
+    if (p) {
+      loadProject(p)
+      setShowOpenList(false)
+      // reload cached thumbnails for this project
+      const map = new Map<string, string>()
+      await Promise.all(p.photos.map(async ph => {
+        try {
+          const t = await api.photos.getThumbnail(p.id, ph.id)
+          if (t) map.set(ph.id, t.data)
+        } catch { /* stale thumb — regenerate on demand */ }
+      }))
+      setThumbnails(map)
+    }
   }
 
   const handleImport = async () => {
@@ -108,6 +150,21 @@ export default function App() {
       <header className="px-3 py-2 border-b border-neutral-800 flex items-center gap-2 text-sm shrink-0">
         <span className="font-semibold mr-2">PickDeAlbum</span>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={newProject}>New</button>
+        <div className="relative">
+          <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={openProjectList}>Open</button>
+          {showOpenList && (
+            <div className="absolute top-full left-0 mt-1 bg-neutral-800 border border-neutral-700 rounded shadow-lg z-50 min-w-56 max-h-72 overflow-auto">
+              {projectList.length === 0 && <div className="px-3 py-2 text-xs text-neutral-400">No saved projects</div>}
+              {projectList.map(p => (
+                <button key={p.id} className="block w-full text-left px-3 py-1.5 hover:bg-neutral-700 text-xs truncate"
+                  onClick={() => openProject(p.id)}>
+                  {p.name}
+                  <span className="text-neutral-500 ml-2">{new Date(p.updatedAt).toLocaleDateString()}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={saveProject}>Save</button>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={handleImport}>Import Photos</button>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40" onClick={() => handleExport('jpg')} disabled={exporting}>Export JPG</button>
@@ -157,7 +214,8 @@ export default function App() {
             <div key={pg.id} onClick={() => selectPage(pg.id)}
               className={`ring-1 ${pg.id === page.id ? 'ring-indigo-500' : 'ring-transparent'} rounded overflow-hidden`}>
               <div className="text-[10px] text-neutral-400 text-center py-0.5 bg-neutral-800">Page {i + 1} · {pg.frames.length} photo{pg.frames.length === 1 ? '' : 's'}</div>
-              <CanvasPage project={project} page={pg} thumbnails={thumbnails} />
+              <CanvasPage project={project} page={pg} thumbnails={thumbnails}
+                  swapTargetId={swapTargetId} onSwap={(a, b) => { swapFrames(pg.id, a, b); setSwapTargetId(null) }} />
             </div>
           ))}
         </section>
@@ -183,7 +241,11 @@ export default function App() {
                     value={selectedFrame[key]} onChange={e => updateFrame(page.id, selectedFrame.id, { [key]: +e.target.value } as any)} />
                 </label>
               ))}
-              <button className="mt-2 px-2 py-1 rounded bg-red-900/60 hover:bg-red-800 w-full" onClick={() => removeFrame(page.id, selectedFrame.id)}>Remove photo</button>
+              <button className="mt-2 px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 w-full"
+                onClick={() => setSwapTargetId(swapTargetId === selectedFrame.id ? null : selectedFrame.id)}>
+                {swapTargetId === selectedFrame.id ? 'Click a frame to swap with' : 'Swap with another frame…'}
+              </button>
+              <button className="mt-1 px-2 py-1 rounded bg-red-900/60 hover:bg-red-800 w-full" onClick={() => removeFrame(page.id, selectedFrame.id)}>Remove photo</button>
             </div>
           )}
         </aside>
