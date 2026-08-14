@@ -7,7 +7,7 @@ import { useState } from 'react'
 import type { Page, Project, Frame } from '../../../shared/types.js'
 import { useEditor } from '../store/editor.js'
 
-const SCALE = 0.5
+const PREVIEW_W = 600
 
 type DragState = {
   id: string
@@ -28,6 +28,7 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
 
   const W = project.pageSpec.width
   const H = project.pageSpec.height
+  const scale = PREVIEW_W / W
 
   // --- frame body drag (move) ---
   const onFramePointerDown = (e: React.PointerEvent, frame: Frame, mode: 'move' | 'resize', dir?: string) => {
@@ -39,8 +40,8 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (!dragging) return
-    const dx = (e.clientX - dragging.startX) / SCALE
-    const dy = (e.clientY - dragging.startY) / SCALE
+    const dx = (e.clientX - dragging.startX) / scale
+    const dy = (e.clientY - dragging.startY) / scale
     const o = dragging.orig
 
     if (dragging.mode === 'move') {
@@ -67,7 +68,7 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      style={{ width: 600, height: 'auto', background: project.pageSpec.background, border: '1px solid #3f3f46', touchAction: 'none' }}
+      style={{ width: PREVIEW_W, height: PREVIEW_W * H / W, background: project.pageSpec.background, border: '1px solid #3f3f46', touchAction: 'none' }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
