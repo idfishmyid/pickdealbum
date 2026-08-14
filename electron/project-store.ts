@@ -179,6 +179,5 @@ function selfCheck() {
   console.log('STORE SELF-CHECK PASS: all operations work')
 }
 
-if (process.argv[1] && import.meta.url === import.meta.resolve(process.argv[1])) {
-  selfCheck()
-}
+const isDirect = process.argv[1]?.includes('project-store.ts') || process.argv[1]?.includes('project-store.js')
+if (isDirect) selfCheck()

@@ -125,6 +125,5 @@ async function selfCheck() {
   console.log('IMAGE SELF-CHECK PASS: thumbnail + export + pdf')
 }
 
-if (process.argv[1] && import.meta.url === import.meta.resolve(process.argv[1])) {
-  selfCheck()
-}
+const isDirect = process.argv[1]?.includes('image-processor.ts') || process.argv[1]?.includes('image-processor.js')
+if (isDirect) selfCheck()

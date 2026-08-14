@@ -223,6 +223,6 @@ function selfCheck() {
   console.log('SELF-CHECK PASS: layout engine behaves correctly (4/4)')
 }
 
-// run self-check when executed directly (Node ≥ 22 runs .ts natively)
-const isDirect = process.argv[1] && import.meta.url === import.meta.resolve(process.argv[1])
+// run self-check when executed directly via `node electron/layout-engine.ts`
+const isDirect = process.argv[1]?.includes('layout-engine.ts') || process.argv[1]?.includes('layout-engine.js')
 if (isDirect) selfCheck()
