@@ -27,6 +27,20 @@
     "sharp": "^0.33.5",
     "zustand": "^4.5.5"
   },
+  "build": {
+    "appId": "com.pickdealbum.app",
+    "productName": "PickDeAlbum",
+    "directories": { "output": "release" },
+    "files": ["out/**/*", "node_modules/**/*"],
+    "win": {
+      "target": "nsis",
+      "icon": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
   "devDependencies": {
     "@electron/rebuild": "^4.2.0",
     "@types/better-sqlite3": "^7.6.11",
