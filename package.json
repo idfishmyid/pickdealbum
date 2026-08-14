@@ -10,7 +10,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "engine:selfcheck": "node electron/layout-engine.ts",
+    "selfcheck": "node electron/layout-engine.ts && node electron/project-store.ts && node electron/image-processor.ts",
     "dist": "electron-vite build && electron-builder"
   },
   "dependencies": {

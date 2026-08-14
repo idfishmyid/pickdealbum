@@ -22,3 +22,40 @@ export interface LayoutInput {
   fitMode?: Fit; noCropPolicy?: boolean
 }
 export interface LayoutResult { pages: RenderPage[]; warnings: Warning[] }
+
+// Project persistence types
+export interface ExportSettings {
+  format: 'jpg' | 'pdf' | 'tiff'
+  quality: number
+  colorProfile: string
+  outputDir: string
+  flattenTwoPageSpread: boolean
+}
+
+export interface DefaultStyle {
+  margin: number
+  gap: number
+  frameStroke: number
+  frameFill: string
+}
+
+export interface Chapter {
+  id: string
+  title: string
+  order: number
+  photoRefs: string[]
+  pages: RenderPage[]
+  styleOverride?: Partial<DefaultStyle>
+}
+
+export interface Project {
+  id: string
+  name: string
+  version: string
+  createdAt: string
+  updatedAt: string
+  pageSpec: PageSpec & { background: string }
+  defaultStyle: DefaultStyle
+  chapters: Chapter[]
+  exportSettings: ExportSettings
+}
