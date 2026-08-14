@@ -51,6 +51,10 @@ ipcMain.handle('photos:importFiles', (_e, files: string[]) => {
 
 // ---- IPC: thumbnails ----
 ipcMain.handle('photos:makeThumbnail', async (_e, projectId: string, photoId: string, srcPath: string) => {
+  // FK: thumbnails.project_id references projects.id. Ensure project row exists.
+  // Caller may have an in-memory project not yet saved; persist it here so FK holds.
+  const existing = store.getProject(projectId)
+  if (!existing) throw new Error('project not saved — call project:save before importing photos')
   const thumb = await makeThumbnail(srcPath)
   store.setThumbnail(projectId, photoId, thumb)
   return { width: thumb.width, height: thumb.height }

@@ -48,6 +48,8 @@ export default function App() {
     setPhotoError('')
     const files = await api.dialog.openFiles()
     if (!files.length) return
+    // persist project first — thumbnail FK requires projects row to exist
+    if (project) await api.project.save(project)
     const imported = await api.photos.importFiles(files)
     if (!imported.length) return
     // read dims via sharp, generate thumbnail, stash base64 for canvas
@@ -63,6 +65,8 @@ export default function App() {
       }
     }))
     addPhotos(withDims)
+    // persist photos into project row (state changed post-thumbnail)
+    if (project) await api.project.save(useEditor.getState().project!)
   }
 
   const ch = project?.chapters.find(c => c.id === currentChapterId) ?? project?.chapters[0]
