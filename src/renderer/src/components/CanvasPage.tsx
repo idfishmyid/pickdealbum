@@ -1,15 +1,15 @@
 /**
- * CanvasPage — renders one album page. Frame placeholders (no actual images
- * yet in Phase 4a): gray boxes at frame geometry. Selection + resize handles.
+ * CanvasPage — renders one album page at preview scale. Frames draw their
+ * photo thumbnail (base64 from main) when available, else a gray placeholder.
  */
 
 import { useState } from 'react'
-import type { Page, Project, Frame } from '../../../shared/types.js'
+import type { Page, Project, Frame, Photo } from '../../../shared/types.js'
 import { useEditor } from '../store/editor.js'
 
 const SCALE = 0.5 // preview scale: 3035px → ~1518px CSS
 
-export function CanvasPage({ project, page }: { project: Project; page: Page }) {
+export function CanvasPage({ project, page, thumbnails }: { project: Project; page: Page; thumbnails: Map<string, string> }) {
   const { selectedFrameId, selectFrame, updateFrame } = useEditor()
   const [dragging, setDragging] = useState<null | { id: string; dir: string; startX: number; startY: number; orig: { x: number; y: number; w: number; h: number } }>(null)
 
@@ -53,10 +53,17 @@ export function CanvasPage({ project, page }: { project: Project; page: Page }) 
         const hs = 14 // handle size
         return (
           <g key={f.id} onPointerDown={(e) => { e.stopPropagation(); selectFrame(f.id) }}>
-            <rect
-              x={f.x} y={f.y} width={f.w} height={f.h}
-              fill="#3f3f46" stroke={selected ? '#818cf8' : '#52525b'} strokeWidth={selected ? 3 : 1}
-            />
+            {thumbnails.get(f.photoId) ? (
+              <image href={`data:image/webp;base64,${thumbnails.get(f.photoId)}`}
+                x={f.x} y={f.y} width={f.w} height={f.h} preserveAspectRatio="xMidYMid meet"
+                stroke={selected ? '#818cf8' : '#52525b'} strokeWidth={selected ? 3 : 1}
+              />
+            ) : (
+              <rect
+                x={f.x} y={f.y} width={f.w} height={f.h}
+                fill="#3f3f46" stroke={selected ? '#818cf8' : '#52525b'} strokeWidth={selected ? 3 : 1}
+              />
+            )}
             {selected && (
               <>
                 <rect x={f.x - hs / 2} y={f.y - hs / 2} width={hs} height={hs} fill="#818cf8" cursor="nwse-resize"

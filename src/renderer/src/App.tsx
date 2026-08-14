@@ -12,7 +12,18 @@ import { CanvasPage } from './components/CanvasPage.js'
 const api = (window as any).electronAPI as {
   project: { create: (n: string) => Promise<Project>; save: (p: Project) => Promise<void> }
   dialog: { openFiles: () => Promise<string[]> }
-  photos: { importFiles: (f: string[]) => Promise<{ id: string; sourcePath: string }[]> }
+  photos: {
+    importFiles: (f: string[]) => Promise<{ id: string; sourcePath: string }[]>
+    makeThumbnail: (projectId: string, photoId: string, srcPath: string) => Promise<{ width: number; height: number }>
+    getThumbnail: (projectId: string, photoId: string) => Promise<{ data: string; width: number; height: number; mimetype: string } | null>
+  }
+  export: {
+    highRes: (project: Project, srcMap: Record<string, string>, format: 'jpg' | 'pdf', outputPath: string) => Promise<any>
+  }
+  dialog: {
+    saveFile: (defaultName: string) => Promise<string | null>
+    openDirectory: () => Promise<string | null>
+  }
 }
 
 export default function App() {
@@ -22,6 +33,7 @@ export default function App() {
     addPhotos, removePhoto, selectPage, selectFrame, updateFrame, removeFrame, splitPage, undo, redo,
   } = useEditor()
   const [photoError, setPhotoError] = useState('')
+  const [thumbnails, setThumbnails] = useState<Map<string, string>>(new Map())
   const booted = useRef(false)
 
   // init: new project on mount (persist wiring comes later)
@@ -38,13 +50,51 @@ export default function App() {
     if (!files.length) return
     const imported = await api.photos.importFiles(files)
     if (!imported.length) return
-    // read dims later via sharp; fallback 4:3
-    addPhotos(imported.map(p => ({ id: p.id, width: 3000, height: 2000, sourcePath: p.sourcePath })))
+    // read dims via sharp, generate thumbnail, stash base64 for canvas
+    const withDims = await Promise.all(imported.map(async p => {
+      try {
+        const dims = await api.photos.makeThumbnail(project!.id, p.id, p.sourcePath)
+        const thumb = await api.photos.getThumbnail(project!.id, p.id)
+        if (thumb) setThumbnails(prev => new Map(prev).set(p.id, thumb.data))
+        return { id: p.id, width: dims.width, height: dims.height, sourcePath: p.sourcePath }
+      } catch (e: any) {
+        setPhotoError(`Thumbnail failed for ${p.sourcePath}: ${e?.message ?? e}`)
+        return { id: p.id, width: 3000, height: 2000, sourcePath: p.sourcePath }
+      }
+    }))
+    addPhotos(withDims)
   }
 
   const ch = project?.chapters.find(c => c.id === currentChapterId) ?? project?.chapters[0]
   const page = ch?.pages.find(p => p.id === currentPageId) ?? ch?.pages[0]
   const selectedFrame = page?.frames.find(f => f.id === selectedFrameId)
+
+  const [exporting, setExporting] = useState(false)
+  const [exportMsg, setExportMsg] = useState('')
+
+  const handleExport = async (format: 'jpg' | 'pdf') => {
+    if (!project) return
+    setExporting(true); setExportMsg('')
+    try {
+      const defaultName = `${project.name}.${format}`
+      const out = format === 'pdf'
+        ? await api.dialog.saveFile(defaultName)
+        : await api.dialog.openDirectory()
+      if (!out) { setExporting(false); return }
+      const srcMap: Record<string, string> = {}
+      for (const ph of project.photos) if (ph.sourcePath) srcMap[ph.id] = ph.sourcePath
+      if (format === 'jpg') {
+        // JPG writes per-page files into chosen directory; saveFile returns dir path
+        const res = await api.export.highRes(project, srcMap, 'jpg', out)
+        setExportMsg(`Exported ${res.length} page(s) to ${out}`)
+      } else {
+        const res = await api.export.highRes(project, srcMap, 'pdf', out)
+        setExportMsg(`Exported PDF (${res.bytes} bytes)`)
+      }
+    } catch (e: any) {
+      setExportMsg(`Export failed: ${e?.message ?? e}`)
+    } finally { setExporting(false) }
+  }
 
   if (!project || !ch || !page) return <div className="h-screen bg-neutral-900 text-neutral-200 flex items-center justify-center">Loading…</div>
 
@@ -56,12 +106,14 @@ export default function App() {
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={newProject}>New</button>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={saveProject}>Save</button>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={handleImport}>Import Photos</button>
+        <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40" onClick={() => handleExport('jpg')} disabled={exporting}>Export JPG</button>
+        <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40" onClick={() => handleExport('pdf')} disabled={exporting}>Export PDF</button>
         <div className="flex-1" />
         <button className="px-2 py-1 rounded bg-neutral-700 disabled:opacity-40" onClick={undo} disabled={!history.length}>Undo</button>
         <button className="px-2 py-1 rounded bg-neutral-700 disabled:opacity-40" onClick={redo} disabled={!future.length}>Redo</button>
       </header>
 
-      {photoError && <div className="px-3 py-1 text-xs text-red-400 bg-red-950/50">{photoError}</div>}
+      {(photoError || exportMsg) && <div className="px-3 py-1 text-xs text-red-400 bg-red-950/50">{photoError || exportMsg}</div>}
 
       <main className="flex-1 grid grid-cols-[200px_1fr_240px] overflow-hidden">
         {/* Chapter sidebar */}
@@ -101,7 +153,7 @@ export default function App() {
             <div key={pg.id} onClick={() => selectPage(pg.id)}
               className={`ring-1 ${pg.id === page.id ? 'ring-indigo-500' : 'ring-transparent'} rounded overflow-hidden`}>
               <div className="text-[10px] text-neutral-400 text-center py-0.5 bg-neutral-800">Page {i + 1} · {pg.frames.length} photo{pg.frames.length === 1 ? '' : 's'}</div>
-              <CanvasPage project={project} page={pg} />
+              <CanvasPage project={project} page={pg} thumbnails={thumbnails} />
             </div>
           ))}
         </section>
