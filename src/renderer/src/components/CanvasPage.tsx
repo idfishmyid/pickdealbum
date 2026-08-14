@@ -96,6 +96,9 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
                 pointerEvents="none"
               />
             )}
+            {f.caption && (
+              <text x={f.x} y={f.y + f.h + 14} fill="#a1a1aa" fontSize={11} pointerEvents="none">{f.caption}</text>
+            )}
             {/* resize handles (only when selected) */}
             {selected && (
               <>

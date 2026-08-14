@@ -270,6 +270,11 @@ export default function App() {
                     value={selectedFrame[key]} onChange={e => updateFrame(page.id, selectedFrame.id, { [key]: +e.target.value } as any)} />
                 </label>
               ))}
+              <label className="block text-xs mt-1">Caption
+                <input className="w-full mt-0.5 px-1 py-0.5 rounded bg-neutral-800 border border-neutral-700 text-xs"
+                  defaultValue={selectedFrame.caption ?? ''} placeholder="Caption / index…"
+                  onBlur={e => { const v = e.target.value; if (v !== (selectedFrame.caption ?? '')) updateFrame(page.id, selectedFrame.id, { caption: v || null }) }} />
+              </label>
               <button className="mt-2 px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 w-full"
                 onClick={() => setSwapTargetId(swapTargetId === selectedFrame.id ? null : selectedFrame.id)}>
                 {swapTargetId === selectedFrame.id ? 'Click a frame to swap with' : 'Swap with another frame…'}
