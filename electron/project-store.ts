@@ -118,8 +118,10 @@ export class Store {
   saveProject(project: Project): void {
     const now = Date.now()
     project.updatedAt = new Date(now).toISOString()
-    this.db.prepare('UPDATE projects SET name = ?, data_json = ?, updated_at = ? WHERE id = ?')
-      .run(project.name, JSON.stringify(project), now, project.id)
+    // Upsert — project may be in-memory (never created in DB yet)
+    this.db.prepare(`INSERT INTO projects (id, name, data_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET name = excluded.name, data_json = excluded.data_json, updated_at = excluded.updated_at`)
+      .run(project.id, project.name, JSON.stringify(project), now, now)
     this.db.prepare('INSERT INTO recent (project_id, last_opened_at) VALUES (?, ?) ON CONFLICT(project_id) DO UPDATE SET last_opened_at=excluded.last_opened_at').run(project.id, now)
   }
 
