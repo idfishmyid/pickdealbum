@@ -125,6 +125,7 @@ export default function App() {
 
   // --- drag-drop photos to canvas ---
   const [autoGrid, setAutoGrid] = useState<'auto' | 'single' | 'two-up' | 'four-up'>('auto')
+  const [autoFit, setAutoFit] = useState<'contain' | 'cover'>('cover')
 
   const handleAutoLayout = async () => {
     if (!project || !ch) return
@@ -133,7 +134,7 @@ export default function App() {
     const result = await api.layout.compute({
       photos, pageSpec: project.pageSpec,
       margins: { top: project.defaultStyle.margin, right: project.defaultStyle.margin, bottom: project.defaultStyle.margin, left: project.defaultStyle.margin },
-      gap: project.defaultStyle.gap, fitMode: 'contain', preferGrid: autoGrid, autoBalance: true,
+      gap: project.defaultStyle.gap, fitMode: autoFit, preferGrid: autoGrid, autoBalance: true,
     })
     const newPages = result.pages.map(p => ({ id: p.id, frames: p.frames }))
     replaceChapterPages(ch.id, newPages)
@@ -276,6 +277,14 @@ export default function App() {
               {(['auto', 'single', 'two-up', 'four-up'] as const).map(g => (
                 <button key={g} className={`px-2 py-0.5 rounded text-xs ${autoGrid === g ? 'bg-indigo-600' : 'bg-neutral-700 hover:bg-neutral-600'}`}
                   onClick={() => setAutoGrid(g)}>{g}</button>
+              ))}
+            </div>
+            <div className="flex gap-1 mt-1">
+              {(['contain', 'cover'] as const).map(f => (
+                <button key={f} className={`px-2 py-0.5 rounded text-xs ${autoFit === f ? 'bg-indigo-600' : 'bg-neutral-700 hover:bg-neutral-600'}`}
+                  onClick={() => setAutoFit(f)}>
+                  {f === 'contain' ? 'Fit (no crop)' : 'Fill (crop)'}
+                </button>
               ))}
             </div>
             <button className="mt-2 px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 w-full text-sm font-medium"
