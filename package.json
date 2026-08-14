@@ -4,35 +4,42 @@
   "description": "Desktop photo album designer",
   "main": "out/main/index.js",
   "pnpm": {
-    "onlyBuiltDependencies": ["sharp", "better-sqlite3", "esbuild", "electron"]
+    "onlyBuiltDependencies": [
+      "sharp",
+      "better-sqlite3",
+      "esbuild",
+      "electron"
+    ]
   },
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "selfcheck": "node electron/layout-engine.ts && node electron/project-store.ts && node electron/image-processor.ts",
+    "rebuild": "electron-rebuild -f -w better-sqlite3 -w sharp",
     "dist": "electron-vite build && electron-builder"
   },
   "dependencies": {
+    "better-sqlite3": "^11.3.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "sharp": "^0.33.5",
-    "better-sqlite3": "^11.3.0",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
-    "electron": "^32.0.0",
-    "electron-vite": "^2.3.0",
-    "electron-builder": "^25.0.0",
-    "@vitejs/plugin-react": "^4.3.2",
-    "typescript": "^5.6.2",
-    "vite": "^5.4.8",
-    "tailwindcss": "^3.4.13",
-    "postcss": "^8.4.47",
-    "autoprefixer": "^10.4.20",
+    "@electron/rebuild": "^4.2.0",
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.7.4",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
-    "@types/better-sqlite3": "^7.6.11",
-    "@types/node": "^22.7.4"
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
   }
 }
