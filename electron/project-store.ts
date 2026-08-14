@@ -97,6 +97,7 @@ export class Store {
       defaultStyle: { margin: 120, gap: 20, frameStroke: 0, frameFill: '#0A0A0A' },
       chapters: [],
       exportSettings: { format: 'jpg', quality: 92, colorProfile: 'sRGB', outputDir: '', flattenTwoPageSpread: false },
+      photos: [],
     }
     this.db.prepare('INSERT INTO projects (id, name, data_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
       .run(id, name, JSON.stringify(project), now, now)

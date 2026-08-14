@@ -3,7 +3,7 @@
 export type Fit = 'contain' | 'cover' | 'fill'
 
 export interface Margin { top: number; right: number; bottom: number; left: number }
-export interface Photo { id: string; width: number; height: number; orientation?: number }
+export interface Photo { id: string; width: number; height: number; orientation?: number; sourcePath?: string }
 export interface PageSpec { width: number; height: number; dpi?: number; bleed?: number }
 export interface CropRect { ox: number; oy: number; cx: number; cy: number }
 export interface Frame {
@@ -58,4 +58,5 @@ export interface Project {
   defaultStyle: DefaultStyle
   chapters: Chapter[]
   exportSettings: ExportSettings
+  photos: Photo[]
 }
