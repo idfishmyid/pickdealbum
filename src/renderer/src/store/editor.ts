@@ -11,12 +11,12 @@ const uid = (p: string) => `${p}_${(Date.now().toString(36))}_${(uidCounter++).t
 
 const snapshot = (p: Project): Project => JSON.parse(JSON.stringify(p))
 
-function makeProject(name = 'Untitled Album'): Project {
+function makeProject(opts: { name?: string; width?: number; height?: number; dpi?: number } = {}): Project {
   const now = new Date().toISOString()
   const chId = uid('ch')
   return {
-    id: uid('prj'), name, version: '1.0.0', createdAt: now, updatedAt: now,
-    pageSpec: { width: 3035, height: 4054, dpi: 300, bleed: 30, background: '#FFFFFF' },
+    id: uid('prj'), name: opts.name || 'Untitled Album', version: '1.0.0', createdAt: now, updatedAt: now,
+    pageSpec: { width: opts.width || 3035, height: opts.height || 4054, dpi: opts.dpi || 300, bleed: 30, background: '#FFFFFF' },
     defaultStyle: { margin: 120, gap: 20, frameStroke: 0, frameFill: '#0A0A0A' },
     chapters: [{ id: chId, title: 'Chapter 1', order: 0, photoRefs: [], pages: [{ id: uid('pg'), frames: [] }] }],
     exportSettings: { format: 'jpg', quality: 92, colorProfile: 'sRGB', outputDir: '', flattenTwoPageSpread: false },
@@ -67,7 +67,7 @@ interface EditorState {
   future: HistoryEntry[]
 
   loadProject: (p: Project) => void
-  newProject: () => void
+  newProject: (opts?: { name?: string; width?: number; height?: number; dpi?: number }) => void
   addChapter: () => void
   renameChapter: (id: string, title: string) => void
   selectChapter: (id: string) => void
@@ -105,8 +105,8 @@ export const useEditor = create<EditorState>((set, get) => ({
     })
   },
 
-  newProject: () => {
-    const p = makeProject()
+  newProject: (opts) => {
+    const p = makeProject(opts)
     set({ project: p, currentChapterId: p.chapters[0].id, currentPageId: p.chapters[0].pages[0].id, selectedFrameId: null, history: [], future: [] })
   },
 

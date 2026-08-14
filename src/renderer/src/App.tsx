@@ -47,7 +47,22 @@ export default function App() {
   const [swapTargetId, setSwapTargetId] = useState<string | null>(null)
   const [editingChapterId, setEditingChapterId] = useState<string | null>(null)
   const [dragPhotoId, setDragPhotoId] = useState<string | null>(null)
+  const [showNewDlg, setShowNewDlg] = useState(false)
+  const [npName, setNpName] = useState('Untitled Album')
+  const [npW, setNpW] = useState('30')
+  const [npH, setNpH] = useState('40')
+  const [npUnit, setNpUnit] = useState<'cm' | 'in' | 'px'>('cm')
+  const [npDpi, setNpDpi] = useState('300')
   const booted = useRef(false)
+
+  const createProject = () => {
+    const dpi = Math.max(72, parseInt(npDpi) || 300)
+    let w = parseFloat(npW) || 30, h = parseFloat(npH) || 40
+    if (npUnit === 'cm') { w = Math.round(w * dpi / 2.54); h = Math.round(h * dpi / 2.54) }
+    else if (npUnit === 'in') { w = Math.round(w * dpi); h = Math.round(h * dpi) }
+    newProject({ name: npName || 'Untitled Album', width: w, height: h, dpi })
+    setShowNewDlg(false)
+  }
 
   // init: new project on mount (persist wiring comes later)
   useEffect(() => { if (!booted.current && !project) { booted.current = true; newProject() } }, [])
@@ -190,7 +205,7 @@ export default function App() {
       {/* Toolbar */}
       <header className="px-3 py-2 border-b border-neutral-800 flex items-center gap-2 text-sm shrink-0">
         <span className="font-semibold mr-2">PickDeAlbum</span>
-        <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={newProject}>New</button>
+        <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={() => setShowNewDlg(true)}>New</button>
         <div className="relative">
           <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={openProjectList}>Open</button>
           {showOpenList && (
@@ -322,6 +337,47 @@ export default function App() {
           )}
         </aside>
       </main>
+
+      {/* New Project dialog */}
+      {showNewDlg && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowNewDlg(false)}>
+          <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-5 w-96 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h2 className="text-sm font-semibold mb-4">New Project</h2>
+            <label className="block text-xs mb-3">Project Name
+              <input className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
+                value={npName} onChange={e => setNpName(e.target.value)} />
+            </label>
+            <div className="flex gap-2 mb-3">
+              <label className="block text-xs flex-1">Width
+                <input className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
+                  value={npW} onChange={e => setNpW(e.target.value)} />
+              </label>
+              <label className="block text-xs flex-1">Height
+                <input className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
+                  value={npH} onChange={e => setNpH(e.target.value)} />
+              </label>
+            </div>
+            <div className="flex gap-2 mb-3">
+              <label className="block text-xs flex-1">Unit
+                <select className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
+                  value={npUnit} onChange={e => setNpUnit(e.target.value as any)}>
+                  <option value="cm">cm</option>
+                  <option value="in">inch</option>
+                  <option value="px">pixel</option>
+                </select>
+              </label>
+              <label className="block text-xs flex-1">Resolution (DPI)
+                <input className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
+                  value={npDpi} onChange={e => setNpDpi(e.target.value)} />
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button className="px-3 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-sm" onClick={() => setShowNewDlg(false)}>Cancel</button>
+              <button className="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-sm font-medium" onClick={createProject}>Create</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
