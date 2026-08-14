@@ -34,7 +34,7 @@ const api = (window as any).electronAPI as {
 export default function App() {
   const {
     project, currentChapterId, currentPageId, selectedFrameId,
-    history, future, loadProject, newProject, addChapter, selectChapter,
+    history, future, loadProject, newProject, addChapter, selectChapter, renameChapter,
     addPhotos, removePhoto, selectPage, selectFrame, updateFrame, removeFrame, swapFrames, splitPage, undo, redo,
   } = useEditor()
   const [photoError, setPhotoError] = useState('')
@@ -42,6 +42,7 @@ export default function App() {
   const [showOpenList, setShowOpenList] = useState(false)
   const [projectList, setProjectList] = useState<{ id: string; name: string; updatedAt: number }[]>([])
   const [swapTargetId, setSwapTargetId] = useState<string | null>(null)
+  const [editingChapterId, setEditingChapterId] = useState<string | null>(null)
   const booted = useRef(false)
 
   // init: new project on mount (persist wiring comes later)
@@ -185,9 +186,17 @@ export default function App() {
           </div>
           {project.chapters.map(c => (
             <div key={c.id} className={`px-2 py-1 rounded cursor-pointer flex items-center justify-between ${c.id === ch.id ? 'bg-indigo-600' : 'hover:bg-neutral-800'}`}
-              onClick={() => selectChapter(c.id)}>
-              <span className="truncate">{c.title}</span>
-              <span className="text-xs text-neutral-300">{c.pages.length}p</span>
+              onClick={() => { selectChapter(c.id); if (editingChapterId !== c.id) setEditingChapterId(null) }}>
+              {editingChapterId === c.id ? (
+                <input autoFocus className="flex-1 bg-neutral-900 border border-indigo-500 rounded px-1 py-0.5 text-xs"
+                  defaultValue={c.title}
+                  onBlur={e => { renameChapter(c.id, e.target.value || c.title); setEditingChapterId(null) }}
+                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                  onClick={e => e.stopPropagation()} />
+              ) : (
+                <span className="truncate" onDoubleClick={e => { e.stopPropagation(); setEditingChapterId(c.id) }}>{c.title}</span>
+              )}
+              <span className="text-xs text-neutral-300 ml-1">{c.pages.length}p</span>
             </div>
           ))}
           {/* Photo list per chapter */}
