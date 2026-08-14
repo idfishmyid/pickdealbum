@@ -25,6 +25,9 @@ const api = (window as any).electronAPI as {
   export: {
     highRes: (project: Project, srcMap: Record<string, string>, format: 'jpg' | 'pdf', outputPath: string) => Promise<any>
   }
+  layout: {
+    compute: (input: { photos: { id: string; width: number; height: number }[]; pageSpec: any; margins: any; gap: number; fitMode?: string; preferGrid?: string; autoBalance?: boolean }) => Promise<{ pages: { id: string; frames: any[] }[]; warnings: any[] }>
+  }
   dialog: {
     saveFile: (defaultName: string) => Promise<string | null>
     openDirectory: () => Promise<string | null>
@@ -35,7 +38,7 @@ export default function App() {
   const {
     project, currentChapterId, currentPageId, selectedFrameId,
     history, future, loadProject, newProject, addChapter, selectChapter, renameChapter,
-    addPhotos, removePhoto, addFrameToPage, selectPage, selectFrame, updateFrame, removeFrame, swapFrames, splitPage, undo, redo,
+    addPhotos, removePhoto, addFrameToPage, selectPage, selectFrame, updateFrame, removeFrame, swapFrames, splitPage, replaceChapterPages, undo, redo,
   } = useEditor()
   const [photoError, setPhotoError] = useState('')
   const [thumbnails, setThumbnails] = useState<Map<string, string>>(new Map())
@@ -121,6 +124,22 @@ export default function App() {
   const [exportMsg, setExportMsg] = useState('')
 
   // --- drag-drop photos to canvas ---
+  const [autoGrid, setAutoGrid] = useState<'auto' | 'single' | 'two-up' | 'four-up'>('auto')
+
+  const handleAutoLayout = async () => {
+    if (!project || !ch) return
+    const photos = ch.photoRefs.map(pid => project.photos.find(p => p.id === pid)).filter(Boolean) as { id: string; width: number; height: number }[]
+    if (!photos.length) { setPhotoError('No photos in chapter to layout'); return }
+    const result = await api.layout.compute({
+      photos, pageSpec: project.pageSpec,
+      margins: { top: project.defaultStyle.margin, right: project.defaultStyle.margin, bottom: project.defaultStyle.margin, left: project.defaultStyle.margin },
+      gap: project.defaultStyle.gap, fitMode: 'contain', preferGrid: autoGrid, autoBalance: true,
+    })
+    const newPages = result.pages.map(p => ({ id: p.id, frames: p.frames }))
+    replaceChapterPages(ch.id, newPages)
+    if (result.warnings.length) setPhotoError(result.warnings.map((w: any) => w.message).join('; '))
+  }
+
   const onCanvasDrop = (e: React.DragEvent) => {
     e.preventDefault()
     const photoId = e.dataTransfer.getData('text/plain')
@@ -252,7 +271,17 @@ export default function App() {
         {/* Properties panel */}
         <aside className="border-l border-neutral-800 overflow-auto p-3 text-sm space-y-4">
           <div>
-            <div className="text-xs text-neutral-400 uppercase mb-1">Page</div>
+            <div className="text-xs text-neutral-400 uppercase mb-1">Auto Layout</div>
+            <div className="flex gap-1 mt-1">
+              {(['auto', 'single', 'two-up', 'four-up'] as const).map(g => (
+                <button key={g} className={`px-2 py-0.5 rounded text-xs ${autoGrid === g ? 'bg-indigo-600' : 'bg-neutral-700 hover:bg-neutral-600'}`}
+                  onClick={() => setAutoGrid(g)}>{g}</button>
+              ))}
+            </div>
+            <button className="mt-2 px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 w-full text-sm font-medium"
+              onClick={handleAutoLayout} disabled={!ch?.photoRefs.length}>Auto Layout Chapter</button>
+
+            <div className="text-xs text-neutral-400 uppercase mt-4 mb-1">Page</div>
             <div className="text-neutral-300 text-xs">{page.frames.length} frames</div>
             <button className="mt-2 px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 w-full"
               onClick={() => splitPage(ch.id, page.id)}

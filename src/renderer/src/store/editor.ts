@@ -81,6 +81,7 @@ interface EditorState {
   swapFrames: (pageId: string, a: string, b: string) => void
   removeFrame: (pageId: string, frameId: string) => void
   splitPage: (chapterId: string, pageId: string) => void
+  replaceChapterPages: (chapterId: string, pages: Page[]) => void
 
   undo: () => void
   redo: () => void
@@ -254,6 +255,24 @@ export const useEditor = create<EditorState>((set, get) => ({
     const after = get().project
     if (before && after) {
       get().history.push({ label: 'Split page', undo: () => set({ project: before }), redo: () => set({ project: after }) })
+      get().future.length = 0
+    }
+  },
+
+  replaceChapterPages: (chapterId, pages) => {
+    const s = get()
+    const before = s.project ? snapshot(s.project) : null
+    set(prev => {
+      if (!prev.project) return prev
+      const p = snapshot(prev.project)
+      const ch = p.chapters.find(c => c.id === chapterId)
+      if (!ch) return prev
+      ch.pages = pages
+      return { project: p, currentPageId: pages[0]?.id ?? null }
+    })
+    const after = get().project
+    if (before && after) {
+      get().history.push({ label: 'Auto layout', undo: () => set({ project: before }), redo: () => set({ project: after }) })
       get().future.length = 0
     }
   },
