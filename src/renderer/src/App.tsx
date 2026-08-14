@@ -4,7 +4,7 @@
  * placeholders; drag-drop/resize/swap wired to store.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Project } from '../../../shared/types.js'
 import { useEditor } from './store/editor.js'
 import { CanvasPage } from './components/CanvasPage.js'
