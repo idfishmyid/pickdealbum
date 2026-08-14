@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { resolve } from 'node:path'
 
 export default defineConfig({
-  main: { build: { rollupOptions: { input: resolve('src/main/index.ts'), external: ['sharp', 'better-sqlite3', 'electron'] } } },
+  main: { build: { rollupOptions: { input: resolve('src/main/index.ts'), external: ['sharp', 'better-sqlite3', 'electron', 'pdfkit'] } } },
   preload: { build: { rollupOptions: { input: resolve('src/preload/index.ts') } } },
   renderer: {
     root: 'src/renderer',

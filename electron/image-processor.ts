@@ -54,7 +54,9 @@ export async function exportPage(
     const oy = Math.round(meta.height * f.crop.oy)
     let buf: Buffer
     if (f.fit === 'contain') {
-      buf = await img.resize({ width: f.w, height: f.h, fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer()
+      // letterbox with page background color; JPG has no alpha so solid bg
+      const bg = /^#[0-9a-f]{6}$/i.test(background) ? background : '#FFFFFF'
+      buf = await img.resize({ width: f.w, height: f.h, fit: 'contain', background: bg }).toBuffer()
     } else {
       buf = await img.extract({ left: ox, top: oy, width: cw, height: ch })
         .resize({ width: f.w, height: f.h, fit: 'fill' })
@@ -71,20 +73,39 @@ export async function exportPage(
   return { pageId, buffer }
 }
 
-/** Multiple pages → single PDF stream. NOTE: sharp 0.33 can't composite→pdf directly.
- * This stub returns a placeholder; real impl needs PDFKit or external tool. */
+/** Multiple pages → single PDF stream (PDFKit). One page per PDF page. */
 export async function exportPdf(
   pages: { pageId: string; frames: Frame[] }[],
   pageSpec: PageSpec,
   srcResolver: (photoId: string) => string,
   background = '#FFFFFF',
 ): Promise<Buffer> {
-  // Export each page as JPG buffer, then concat with PDFKit (TODO Phase 4)
-  const pageBuffers = await Promise.all(
-    pages.map(p => exportPage(p.pageId, p.frames, pageSpec, srcResolver, background)),
-  )
-  // Stub: return a fake PDF header for self-check (real impl uses PDFKit)
-  return Buffer.from('%PDF-1.4 stub')
+  const PDFDocument = (await import('pdfkit')).default
+  const doc = new PDFDocument({
+    size: [pageSpec.width, pageSpec.height],
+    margin: 0, autoFirstPage: false,
+  })
+  const chunks: Buffer[] = []
+  doc.on('data', (c: Buffer) => chunks.push(c))
+  const done = new Promise<Buffer>((resolve) => doc.on('end', () => resolve(Buffer.concat(chunks))))
+
+  for (const p of pages) {
+    doc.addPage()
+    if (background && /^#[0-9a-f]{6}$/i.test(background)) {
+      doc.rect(0, 0, pageSpec.width, pageSpec.height).fill(background)
+    }
+    // composite each frame onto the PDF page
+    for (const f of p.frames) {
+      const src = srcResolver(f.photoId)
+      const img = sharp(src, { failOn: 'none' }).rotate()
+      const meta = await img.metadata()
+      if (!meta.width || !meta.height) continue
+      const buf = await img.resize({ width: f.w, height: f.h, fit: 'fill' }).toBuffer()
+      try { doc.image(buf, f.x, f.y, { width: f.w, height: f.h }) } catch { /* skip */ }
+    }
+  }
+  doc.end()
+  return done
 }
 
 // ---------------------------------------------------------------------------
