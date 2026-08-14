@@ -35,7 +35,7 @@ export default function App() {
   const {
     project, currentChapterId, currentPageId, selectedFrameId,
     history, future, loadProject, newProject, addChapter, selectChapter, renameChapter,
-    addPhotos, removePhoto, selectPage, selectFrame, updateFrame, removeFrame, swapFrames, splitPage, undo, redo,
+    addPhotos, removePhoto, addFrameToPage, selectPage, selectFrame, updateFrame, removeFrame, swapFrames, splitPage, undo, redo,
   } = useEditor()
   const [photoError, setPhotoError] = useState('')
   const [thumbnails, setThumbnails] = useState<Map<string, string>>(new Map())
@@ -43,6 +43,7 @@ export default function App() {
   const [projectList, setProjectList] = useState<{ id: string; name: string; updatedAt: number }[]>([])
   const [swapTargetId, setSwapTargetId] = useState<string | null>(null)
   const [editingChapterId, setEditingChapterId] = useState<string | null>(null)
+  const [dragPhotoId, setDragPhotoId] = useState<string | null>(null)
   const booted = useRef(false)
 
   // init: new project on mount (persist wiring comes later)
@@ -118,6 +119,25 @@ export default function App() {
 
   const [exporting, setExporting] = useState(false)
   const [exportMsg, setExportMsg] = useState('')
+
+  // --- drag-drop photos to canvas ---
+  const onCanvasDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const photoId = e.dataTransfer.getData('text/plain')
+    if (!photoId || !page) return
+    const rect = (e.currentTarget as HTMLElement).querySelector('svg')?.getBoundingClientRect()
+    if (!rect) return
+    const SCALE = 0.5
+    const x = (e.clientX - rect.left) / SCALE
+    const y = (e.clientY - rect.top) / SCALE
+    const ph = project?.photos.find(p => p.id === photoId)
+    if (!ph) return
+    const spec = project!.pageSpec, m = project!.defaultStyle
+    const r = ph.width / Math.max(1, ph.height)
+    const w = Math.min((spec.width - m.margin * 2) * 0.9, (spec.height - m.margin * 2) * 0.75 * r)
+    const h = w / r
+    addFrameToPage(page.id, photoId, Math.round(Math.max(m.margin, Math.min(x - w / 2, spec.width - m.margin - w))), Math.round(Math.max(m.margin, Math.min(y - h / 2, spec.height - m.margin - h))), Math.round(w), Math.round(h))
+  }
 
   const handleExport = async (format: 'jpg' | 'pdf') => {
     if (!project) return
@@ -207,7 +227,7 @@ export default function App() {
                 const ph = project.photos.find(p => p.id === pid)
                 if (!ph) return null
                 return (
-                  <div key={pid} className="px-2 py-0.5 rounded hover:bg-neutral-800 flex items-center justify-between group text-xs">
+                  <div key={pid} draggable onDragStart={e => e.dataTransfer.setData('text/plain', pid)} className="px-2 py-0.5 rounded hover:bg-neutral-800 flex items-center justify-between group text-xs cursor-grab">
                     <span className="truncate">{ph.sourcePath?.split(/[\\/]/).pop() ?? pid}</span>
                     <button className="text-neutral-500 hover:text-red-400 opacity-0 group-hover:opacity-100" onClick={() => removePhoto(pid)}>×</button>
                   </div>
@@ -218,7 +238,7 @@ export default function App() {
         </aside>
 
         {/* Canvas — pages filmstrip */}
-        <section className="overflow-auto p-4 flex flex-col gap-3 items-start">
+        <section className="overflow-auto p-4 flex flex-col gap-3 items-start" onDragOver={e => e.preventDefault()} onDrop={onCanvasDrop}>
           {ch.pages.map((pg, i) => (
             <div key={pg.id} onClick={() => selectPage(pg.id)}
               className={`ring-1 ${pg.id === page.id ? 'ring-indigo-500' : 'ring-transparent'} rounded overflow-hidden`}>
