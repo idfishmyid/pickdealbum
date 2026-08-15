@@ -7,7 +7,6 @@ import { useState } from 'react'
 import type { Page, Project, Frame } from '../../../../shared/types.js'
 import { useEditor } from '../store/editor.js'
 
-const PREVIEW_W = 600
 const SNAP = 6 // px distance (page space) to magnet to a guide
 const SNAP_STEP = 2 // step size when no guide found (page space)
 
@@ -24,10 +23,11 @@ type DragState = {
   guide?: Guide
 }
 
-export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: {
+export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap, previewW = 600 }: {
   project: Project; page: Page; thumbnails: Map<string, string>
   swapTargetId: string | null
   onSwap: (a: string, b: string) => void
+  previewW?: number
 }) {
   const { selectedFrameId, selectFrame, updateFrame } = useEditor()
   const [dragging, setDragging] = useState<DragState | null>(null)
@@ -35,7 +35,7 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
 
   const W = project.pageSpec.width
   const H = project.pageSpec.height
-  const scale = PREVIEW_W / W
+  const scale = previewW / W
 
   const selSet = (id: string) => id === selectedFrameId || extraSel.has(id)
 
@@ -118,7 +118,7 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      style={{ width: PREVIEW_W, height: PREVIEW_W * H / W, background: project.pageSpec.background, border: '1px solid #3f3f46', touchAction: 'none' }}
+      style={{ width: previewW, height: previewW * H / W, background: project.pageSpec.background, border: '1px solid #3f3f46', touchAction: 'none' }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}

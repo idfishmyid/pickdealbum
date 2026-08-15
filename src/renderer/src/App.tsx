@@ -43,6 +43,7 @@ export default function App() {
   const [photoError, setPhotoError] = useState('')
   const [thumbnails, setThumbnails] = useState<Map<string, string>>(new Map())
   const [showOpenList, setShowOpenList] = useState(false)
+  const [zoom, setZoom] = useState(1.5) // page preview zoom multiplier
   const [projectList, setProjectList] = useState<{ id: string; name: string; updatedAt: number }[]>([])
   const [swapTargetId, setSwapTargetId] = useState<string | null>(null)
   const [editingChapterId, setEditingChapterId] = useState<string | null>(null)
@@ -331,6 +332,11 @@ export default function App() {
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40" onClick={() => handleExport('png')} disabled={exporting}>Export PNG</button>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40" onClick={() => handleExport('pdf')} disabled={exporting}>Export PDF</button>
         <div className="flex-1" />
+        <div className="flex items-center gap-1" title="Canvas zoom">
+          <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={() => setZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))}>−</button>
+          <span className="w-14 text-center text-xs text-neutral-400 select-none">{Math.round(zoom * 100)}%</span>
+          <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={() => setZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))}>+</button>
+        </div>
         <button className="px-2 py-1 rounded bg-neutral-700 disabled:opacity-40" onClick={undo} disabled={!history.length}>Undo</button>
         <button className="px-2 py-1 rounded bg-neutral-700 disabled:opacity-40" onClick={redo} disabled={!future.length}>Redo</button>
       </header>
@@ -387,7 +393,8 @@ export default function App() {
               className={`ring-1 ${pg.id === page.id ? 'ring-indigo-500' : 'ring-transparent'} rounded overflow-hidden`}>
               <div className="text-[10px] text-neutral-400 text-center py-0.5 bg-neutral-800">Page {i + 1} · {pg.frames.length} photo{pg.frames.length === 1 ? '' : 's'}</div>
               <CanvasPage project={project} page={pg} thumbnails={thumbnails}
-                  swapTargetId={swapTargetId} onSwap={(a, b) => { swapFrames(pg.id, a, b); setSwapTargetId(null) }} />
+                  swapTargetId={swapTargetId} onSwap={(a, b) => { swapFrames(pg.id, a, b); setSwapTargetId(null) }}
+                  previewW={Math.max(200, Math.round(600 * zoom))} />
             </div>
           ))}
         </section>
