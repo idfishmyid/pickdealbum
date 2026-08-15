@@ -33,7 +33,7 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap, on
   const { selectedFrameId, selectFrame, updateFrame } = useEditor()
   const [dragging, setDragging] = useState<DragState | null>(null)
   const [extraSel, setExtraSel] = useState<Set<string>>(new Set()) // Shift+click multi-select (local)
-  const [missingThumbnails, setMissingThumbnails] = useState<Set<string>>(new Set())
+  const [loadedThumbnails, setLoadedThumbnails] = useState<Map<string, string>>(new Map())
 
   const W = project.pageSpec.width
   const H = project.pageSpec.height
@@ -46,19 +46,18 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap, on
     const api = (window as any).electronAPI
     if (!api?.photos?.getThumbnail) return
 
-    const missing = page.frames
-      .filter(f => !thumbnails.has(f.photoId) && !missingThumbnails.has(f.photoId))
-      .map(f => f.photoId)
+    const missing = page.frames.filter(f => !thumbnails.has(f.photoId) && !loadedThumbnails.has(f.photoId))
 
-    missing.forEach(photoId => {
-      setMissingThumbnails(prev => new Set(prev).add(photoId))
-      api.photos.getThumbnail(project.id, photoId)
+    missing.forEach(f => {
+      api.photos.getThumbnail(project.id, f.photoId)
         .then((thumb: any) => {
-          if (thumb) thumbnails.set(photoId, thumb.data)
+          if (thumb?.data) {
+            setLoadedThumbnails(prev => new Map(prev).set(f.photoId, thumb.data))
+          }
         })
         .catch(() => {})
     })
-  }, [page.frames.length, project.id, thumbnails, missingThumbnails])
+  }, [page.frames.length, project.id, thumbnails])
 
   // --- frame body drag (move) ---
   const onFramePointerDown = (e: React.PointerEvent, frame: Frame, mode: 'move' | 'resize', dir?: string) => {
@@ -162,10 +161,10 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap, on
                 onFramePointerDown(e, f, 'move')
               }}
             />
-            {thumbnails.get(f.photoId) && (
+            {(thumbnails.get(f.photoId) || loadedThumbnails.get(f.photoId)) && (
               <foreignObject x={f.x} y={f.y} width={f.w} height={f.h} pointerEvents="none">
                 <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
-                  <img src={`data:image/webp;base64,${thumbnails.get(f.photoId)}`} alt=""
+                  <img src={`data:image/webp;base64,${thumbnails.get(f.photoId) || loadedThumbnails.get(f.photoId)}`} alt=""
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 </div>
               </foreignObject>
