@@ -3,7 +3,7 @@
  * frame move (drag body) and frame resize (drag corner handles).
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Page, Project, Frame } from '../../../../shared/types.js'
 import { useEditor } from '../store/editor.js'
 
@@ -33,12 +33,32 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap, on
   const { selectedFrameId, selectFrame, updateFrame } = useEditor()
   const [dragging, setDragging] = useState<DragState | null>(null)
   const [extraSel, setExtraSel] = useState<Set<string>>(new Set()) // Shift+click multi-select (local)
+  const [missingThumbnails, setMissingThumbnails] = useState<Set<string>>(new Set())
 
   const W = project.pageSpec.width
   const H = project.pageSpec.height
   const scale = previewW / W
 
   const selSet = (id: string) => id === selectedFrameId || extraSel.has(id)
+
+  // on-demand thumbnail load for frames without thumbnails
+  useEffect(() => {
+    const api = (window as any).electronAPI
+    if (!api?.photos?.getThumbnail) return
+
+    const missing = page.frames
+      .filter(f => !thumbnails.has(f.photoId) && !missingThumbnails.has(f.photoId))
+      .map(f => f.photoId)
+
+    missing.forEach(photoId => {
+      setMissingThumbnails(prev => new Set(prev).add(photoId))
+      api.photos.getThumbnail(project.id, photoId)
+        .then((thumb: any) => {
+          if (thumb) thumbnails.set(photoId, thumb.data)
+        })
+        .catch(() => {})
+    })
+  }, [page.frames.length, project.id, thumbnails, missingThumbnails])
 
   // --- frame body drag (move) ---
   const onFramePointerDown = (e: React.PointerEvent, frame: Frame, mode: 'move' | 'resize', dir?: string) => {
@@ -128,8 +148,6 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap, on
     >
       {page.frames.map((f) => {
         const selected = selSet(f.id)
-        const hasThumbnail = thumbnails.has(f.photoId)
-        if (!hasThumbnail) console.log('Frame without thumbnail:', f.id, 'photoId:', f.photoId, 'has thumbnail:', hasThumbnail)
         return (
           <g key={f.id}>
             {/* frame body: image or placeholder */}
