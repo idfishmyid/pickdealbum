@@ -12,13 +12,15 @@ const SNAP = 6 // px distance (page space) to magnet to a guide
 const SNAP_STEP = 2 // step size when no guide found (page space)
 
 type Guide = { vertical?: number; horizontal?: number }
+type Rect = { x: number; y: number; w: number; h: number }
 type DragState = {
   id: string
   mode: 'move' | 'resize'
   dir?: string // only for resize: 'nw', 'ne', 'sw', 'se'
   startX: number
   startY: number
-  orig: { x: number; y: number; w: number; h: number }
+  orig: Rect
+  origAll: Map<string, Rect> // per-frame start rects for multi-select move
   guide?: Guide
 }
 
@@ -29,16 +31,33 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
 }) {
   const { selectedFrameId, selectFrame, updateFrame } = useEditor()
   const [dragging, setDragging] = useState<DragState | null>(null)
+  const [extraSel, setExtraSel] = useState<Set<string>>(new Set()) // Shift+click multi-select (local)
 
   const W = project.pageSpec.width
   const H = project.pageSpec.height
   const scale = PREVIEW_W / W
 
+  const selSet = (id: string) => id === selectedFrameId || extraSel.has(id)
+
   // --- frame body drag (move) ---
   const onFramePointerDown = (e: React.PointerEvent, frame: Frame, mode: 'move' | 'resize', dir?: string) => {
     e.stopPropagation()
+    if (mode === 'move' && e.shiftKey) {
+      // shift-click: toggle multi-select without changing primary
+      const has = selSet(frame.id)
+      setExtraSel(prev => {
+        const n = new Set(prev)
+        if (has) n.delete(frame.id)
+        else if (frame.id !== selectedFrameId) n.add(frame.id)
+        return n
+      })
+      return
+    }
+    if (mode === 'move') setExtraSel(new Set()) // plain click resets multi
     selectFrame(frame.id)
-    setDragging({ id: frame.id, mode, dir, startX: e.clientX, startY: e.clientY, orig: { x: frame.x, y: frame.y, w: frame.w, h: frame.h } })
+    const origAll = new Map<string, Rect>()
+    for (const f of page.frames) if (selSet(f.id)) origAll.set(f.id, { x: f.x, y: f.y, w: f.w, h: f.h })
+    setDragging({ id: frame.id, mode, dir, startX: e.clientX, startY: e.clientY, orig: { x: frame.x, y: frame.y, w: frame.w, h: frame.h }, origAll })
     ;(e.currentTarget as SVGElement).setPointerCapture(e.pointerId)
   }
 
@@ -69,7 +88,15 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
       if (Math.abs(gy + o.h / 2 - cy) <= SNAP) { gy = cy - o.h / 2; guide.horizontal = cy }
       x = Math.max(0, Math.min(gx, W - o.w))
       y = Math.max(0, Math.min(gy, H - o.h))
-      updateFrame(page.id, dragging.id, { x: Math.round(x), y: Math.round(y) })
+      // apply to all selected frames (origAll preserves individual origins)
+      const deltaX = Math.round(x - o.x)
+      const deltaY = Math.round(y - o.y)
+      for (const [fid, orig] of dragging.origAll ?? new Map()) {
+        updateFrame(page.id, fid, {
+          x: Math.max(0, Math.min(orig.x + deltaX, W - orig.w)),
+          y: Math.max(0, Math.min(orig.y + deltaY, H - orig.h)),
+        })
+      }
       setDragging({ ...dragging, guide })
     } else {
       let x = o.x, y = o.y, w = o.w, h = o.h
@@ -97,7 +124,7 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
       onPointerLeave={onPointerUp}
     >
       {page.frames.map((f) => {
-        const selected = f.id === selectedFrameId
+        const selected = selSet(f.id)
         return (
           <g key={f.id}>
             {/* frame body: image or placeholder */}
