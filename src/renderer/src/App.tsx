@@ -62,10 +62,20 @@ export default function App() {
     else if (npUnit === 'in') { w = Math.round(w * dpi); h = Math.round(h * dpi) }
     newProject({ name: npName || 'Untitled Album', width: w, height: h, dpi })
     setShowNewDlg(false)
+    setShowHome(false)
   }
 
-  // init: new project on mount (persist wiring comes later)
-  useEffect(() => { if (!booted.current && !project) { booted.current = true; newProject() } }, [])
+  // init: show project picker (home) on mount; don't auto-create
+  useEffect(() => { booted.current = true }, [])
+  const [showHome, setShowHome] = useState(true)
+  const [homeProjects, setHomeProjects] = useState<{ id: string; name: string; updatedAt: number }[]>([])
+  const [homeLoaded, setHomeLoaded] = useState(false)
+  const loadHome = async () => {
+    const list = await api.project.list()
+    setHomeProjects(list)
+    setHomeLoaded(true)
+  }
+  useEffect(() => { if (showHome) loadHome() }, [showHome])
 
   // auto-save: persist project whenever it changes (skip first boot)
   const savedRef = useRef<string>('')
@@ -122,6 +132,7 @@ export default function App() {
     if (p) {
       loadProject(p)
       setShowOpenList(false)
+      setShowHome(false)
       // reload cached thumbnails for this project
       const map = new Map<string, string>()
       await Promise.all(p.photos.map(async ph => {
@@ -227,6 +238,70 @@ export default function App() {
   }
 
   if (!project || !ch || !page) return <div className="h-screen bg-neutral-900 text-neutral-200 flex items-center justify-center">Loading…</div>
+
+  if (showHome) {
+    return (
+      <div className="h-screen bg-neutral-900 text-neutral-100 flex flex-col">
+        <header className="px-6 py-4 border-b border-neutral-800 flex items-center gap-3">
+          <span className="font-semibold text-lg">PickDeAlbum</span>
+          <button className="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-sm font-medium" onClick={() => { setShowNewDlg(true) }}>New Project</button>
+        </header>
+        <main className="flex-1 overflow-auto p-6">
+          <h2 className="text-xs text-neutral-400 uppercase mb-3">Projects</h2>
+          {!homeLoaded && <div className="text-sm text-neutral-400">Loading…</div>}
+          {homeLoaded && homeProjects.length === 0 && <div className="text-sm text-neutral-400">No projects yet. Create one to get started.</div>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-4xl">
+            {homeProjects.map(p => (
+              <button key={p.id} className="text-left p-4 rounded-lg bg-neutral-800 hover:bg-neutral-700 border border-neutral-700"
+                onClick={() => openProject(p.id)}>
+                <div className="font-medium truncate">{p.name}</div>
+                <div className="text-xs text-neutral-400 mt-1">{new Date(p.updatedAt).toLocaleDateString()}</div>
+              </button>
+            ))}
+          </div>
+        </main>
+        {showNewDlg && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowNewDlg(false)}>
+            <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-5 w-96 shadow-xl" onClick={e => e.stopPropagation()}>
+              <h2 className="text-sm font-semibold mb-4">New Project</h2>
+              <label className="block text-xs mb-3">Project Name
+                <input className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
+                  value={npName} onChange={e => setNpName(e.target.value)} />
+              </label>
+              <div className="flex gap-2 mb-3">
+                <label className="block text-xs flex-1">Width
+                  <input className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
+                    value={npW} onChange={e => setNpW(e.target.value)} />
+                </label>
+                <label className="block text-xs flex-1">Height
+                  <input className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
+                    value={npH} onChange={e => setNpH(e.target.value)} />
+                </label>
+              </div>
+              <div className="flex gap-2 mb-3">
+                <label className="block text-xs flex-1">Unit
+                  <select className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
+                    value={npUnit} onChange={e => setNpUnit(e.target.value as any)}>
+                    <option value="cm">cm</option>
+                    <option value="in">inch</option>
+                    <option value="px">pixel</option>
+                  </select>
+                </label>
+                <label className="block text-xs flex-1">Resolution (DPI)
+                  <input className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
+                    value={npDpi} onChange={e => setNpDpi(e.target.value)} />
+                </label>
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <button className="px-3 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-sm" onClick={() => setShowNewDlg(false)}>Cancel</button>
+                <button className="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-sm font-medium" onClick={createProject}>Create</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="h-screen flex flex-col bg-neutral-900 text-neutral-100">
