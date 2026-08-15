@@ -46,18 +46,20 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap, on
     const api = (window as any).electronAPI
     if (!api?.photos?.getThumbnail) return
 
-    const missing = page.frames.filter(f => !thumbnails.has(f.photoId) && !loadedThumbnails.has(f.photoId))
-
-    missing.forEach(f => {
-      api.photos.getThumbnail(project.id, f.photoId)
-        .then((thumb: any) => {
-          if (thumb?.data) {
-            setLoadedThumbnails(prev => new Map(prev).set(f.photoId, thumb.data))
-          }
-        })
-        .catch(() => {})
+    page.frames.forEach(f => {
+      if (!thumbnails.has(f.photoId) && !loadedThumbnails.has(f.photoId)) {
+        console.log('fetching thumbnail for:', f.photoId)
+        api.photos.getThumbnail(project.id, f.photoId)
+          .then((thumb: any) => {
+            console.log('got thumbnail:', f.photoId, !!thumb?.data)
+            if (thumb?.data) {
+              setLoadedThumbnails(prev => new Map(prev).set(f.photoId, thumb.data))
+            }
+          })
+          .catch((err: any) => console.error('getThumbnail failed:', err))
+      }
     })
-  }, [page.frames.length, project.id, thumbnails])
+  }, [page.frames.map(f => f.photoId).join(','), project.id])
 
   // --- frame body drag (move) ---
   const onFramePointerDown = (e: React.PointerEvent, frame: Frame, mode: 'move' | 'resize', dir?: string) => {
