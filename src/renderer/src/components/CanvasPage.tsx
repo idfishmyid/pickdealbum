@@ -48,15 +48,13 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap, on
 
     page.frames.forEach(f => {
       if (!thumbnails.has(f.photoId) && !loadedThumbnails.has(f.photoId)) {
-        console.log('fetching thumbnail for:', f.photoId)
         api.photos.getThumbnail(project.id, f.photoId)
           .then((thumb: any) => {
-            console.log('got thumbnail:', f.photoId, !!thumb?.data)
             if (thumb?.data) {
               setLoadedThumbnails(prev => new Map(prev).set(f.photoId, thumb.data))
             }
           })
-          .catch((err: any) => console.error('getThumbnail failed:', err))
+          .catch(() => {})
       }
     })
   }, [page.frames.map(f => f.photoId).join(','), project.id])
@@ -150,7 +148,6 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap, on
       {page.frames.map((f) => {
         const selected = selSet(f.id)
         const thumb = thumbnails.get(f.photoId) || loadedThumbnails.get(f.photoId)
-        if (!thumb && page.frames.length > 1) console.log('Frame render:', f.id, 'photoId:', f.photoId, 'thumb:', !!thumb, 'loaded:', !!loadedThumbnails.get(f.photoId))
         return (
           <g key={f.id}>
             {/* frame body: image or placeholder */}

@@ -198,8 +198,8 @@ export default function App() {
   }
 
   const onCanvasDrop = (e: React.DragEvent, targetPageId: string) => {
-    console.log('onCanvasDrop targetPageId:', targetPageId, 'current page:', page?.id, 'frames before:', page?.frames.length)
     e.preventDefault()
+    e.stopPropagation()
     // Accept both mime types — image drags sometimes lose text/plain in Chromium
     const photoId = e.dataTransfer.getData('application/x-pickdeal-photo') || e.dataTransfer.getData('text/plain')
     if (!photoId) return
