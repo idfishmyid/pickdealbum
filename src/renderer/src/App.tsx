@@ -83,6 +83,34 @@ export default function App() {
     await api.project.save(project)
   }
 
+  // keyboard: undo/redo, delete frame, arrow nudge
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const s = useEditor.getState()
+      if (!s.project || !s.selectedFrameId || !s.currentPageId) return
+      const t = e.target as HTMLElement
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
+      const k = e.key.toLowerCase()
+      if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); e.shiftKey ? s.redo() : s.undo(); return }
+      if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); s.redo(); return }
+      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); s.removeFrame(s.currentPageId, s.selectedFrameId); return }
+      const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key]
+      if (!dir) return
+      e.preventDefault()
+      const page = s.project.chapters.flatMap(c => c.pages).find(p => p.id === s.currentPageId)
+      const f = page?.frames.find(f => f.id === s.selectedFrameId)
+      if (!f) return
+      const step = e.shiftKey ? 10 : 1
+      const spec = s.project.pageSpec
+      s.updateFrame(s.currentPageId, s.selectedFrameId, {
+        x: Math.max(0, Math.min(f.x + dir[0] * step, spec.width - f.w)),
+        y: Math.max(0, Math.min(f.y + dir[1] * step, spec.height - f.h)),
+      })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const openProjectList = async () => {
     const list = await api.project.list()
     setProjectList(list)
