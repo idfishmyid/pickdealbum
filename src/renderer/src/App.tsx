@@ -202,7 +202,9 @@ export default function App() {
     // Accept both mime types — image drags sometimes lose text/plain in Chromium
     const photoId = e.dataTransfer.getData('application/x-pickdeal-photo') || e.dataTransfer.getData('text/plain')
     if (!photoId) return
-    const rect = (e.currentTarget as HTMLElement).querySelector('svg')?.getBoundingClientRect()
+    // drop now attaches to the SVG element directly, so currentTarget may be the SVG
+    const el = e.currentTarget as Element
+    const rect = el instanceof SVGElement ? el.getBoundingClientRect() : el.querySelector('svg')?.getBoundingClientRect()
     if (!rect) return
     const spec = project!.pageSpec
     const scale = rect.width / spec.width // page-space px per screen px at current zoom
@@ -414,10 +416,11 @@ export default function App() {
                 <div className="flex shadow-2xl rounded-sm overflow-hidden bg-white">
                   {left ? (
                     <div onClick={() => selectPage(left.id)}
-                      onDragOver={onCanvasDragOver} onDragLeave={onCanvasDragLeave} onDrop={e => onCanvasDrop(e, left.id)}
+                      onDragOver={onCanvasDragOver} onDragLeave={onCanvasDragLeave}
                       className={`relative transition-all ${left.id === page.id ? 'ring-2 ring-indigo-500 ring-inset' : ''}`}>
                       <SpreadPage project={project} page={left} thumbnails={thumbnails}
                         swapTargetId={swapTargetId} onSwap={(a, b) => { swapFrames(left.id, a, b); setSwapTargetId(null) }}
+                        onDrop={e => onCanvasDrop(e, left.id)}
                         previewW={Math.max(160, Math.round((canvasW - 80) / 2 * zoom))} />
                     </div>
                   ) : <div className="bg-gray-50 border border-dashed border-gray-300" style={{ width: Math.max(160, Math.round((canvasW - 80) / 2 * zoom)), aspectRatio: `${project.pageSpec.width}/${project.pageSpec.height}` }} />}
