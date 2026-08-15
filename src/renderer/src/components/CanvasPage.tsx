@@ -122,7 +122,8 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap, pr
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
-      onDragOver={(e) => e.preventDefault()}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' }}
+      onDrop={onDrop}
     >
       {page.frames.map((f) => {
         const selected = selSet(f.id)

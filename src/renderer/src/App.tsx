@@ -428,10 +428,11 @@ export default function App() {
                   </div>
                   {right ? (
                     <div onClick={() => selectPage(right.id)}
-                      onDragOver={onCanvasDragOver} onDragLeave={onCanvasDragLeave} onDrop={e => onCanvasDrop(e, right.id)}
+                      onDragOver={onCanvasDragOver} onDragLeave={onCanvasDragLeave}
                       className={`relative transition-all ${right.id === page.id ? 'ring-2 ring-indigo-500 ring-inset' : ''}`}>
                       <SpreadPage project={project} page={right} thumbnails={thumbnails}
                         swapTargetId={swapTargetId} onSwap={(a, b) => { swapFrames(right.id, a, b); setSwapTargetId(null) }}
+                        onDrop={e => onCanvasDrop(e, right.id)}
                         previewW={Math.max(160, Math.round((canvasW - 80) / 2 * zoom))} />
                     </div>
                   ) : <div className="bg-gray-50 border border-dashed border-gray-300" style={{ width: Math.max(160, Math.round((canvasW - 80) / 2 * zoom)), aspectRatio: `${project.pageSpec.width}/${project.pageSpec.height}` }} />}
@@ -464,14 +465,14 @@ function ToolBtn({ label, glyph, onClick, active, disabled }: { label: string; g
 }
 
 /** A page used inside a spread — CanvasPage wrapped in white paper styling. */
-function SpreadPage({ project, page, thumbnails, swapTargetId, onSwap, previewW }: {
+function SpreadPage({ project, page, thumbnails, swapTargetId, onSwap, onDrop, previewW }: {
   project: Project; page: Page; thumbnails: Map<string, string>
-  swapTargetId: string | null; onSwap: (a: string, b: string) => void; previewW: number
+  swapTargetId: string | null; onSwap: (a: string, b: string) => void; onDrop?: (e: React.DragEvent) => void; previewW: number
 }) {
   return (
     <div className="bg-white relative">
       <CanvasPage project={project} page={page} thumbnails={thumbnails}
-        swapTargetId={swapTargetId} onSwap={onSwap} previewW={previewW} />
+        swapTargetId={swapTargetId} onSwap={onSwap} onDrop={onDrop} previewW={previewW} />
     </div>
   )
 }
