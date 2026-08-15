@@ -8,7 +8,10 @@ import type { Page, Project, Frame } from '../../../../shared/types.js'
 import { useEditor } from '../store/editor.js'
 
 const PREVIEW_W = 600
+const SNAP = 6 // px distance (page space) to magnet to a guide
+const SNAP_STEP = 2 // step size when no guide found (page space)
 
+type Guide = { vertical?: number; horizontal?: number }
 type DragState = {
   id: string
   mode: 'move' | 'resize'
@@ -16,6 +19,7 @@ type DragState = {
   startX: number
   startY: number
   orig: { x: number; y: number; w: number; h: number }
+  guide?: Guide
 }
 
 export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: {
@@ -48,7 +52,25 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
       let x = o.x + dx, y = o.y + dy
       x = Math.max(0, Math.min(x, W - o.w))
       y = Math.max(0, Math.min(y, H - o.h))
+      // snap to sibling edges + page margins/center while dragging
+      const guide: Guide = {}
+      let gx = x, gy = y
+      for (const other of page.frames) {
+        if (other.id === dragging.id) continue
+        for (const [a, b] of [[gx, other.x], [gx + o.w, other.x + other.w], [gx, other.x + other.w]] as [number, number][]) {
+          if (Math.abs(a - b) <= SNAP) { gx = b; guide.vertical = b }
+        }
+        for (const [a, b] of [[gy, other.y], [gy + o.h, other.y + other.h], [gy, other.y + other.h]] as [number, number][]) {
+          if (Math.abs(a - b) <= SNAP) { gy = b; guide.horizontal = b }
+        }
+      }
+      const cx = W / 2, cy = H / 2
+      if (Math.abs(gx + o.w / 2 - cx) <= SNAP) { gx = cx - o.w / 2; guide.vertical = cx }
+      if (Math.abs(gy + o.h / 2 - cy) <= SNAP) { gy = cy - o.h / 2; guide.horizontal = cy }
+      x = Math.max(0, Math.min(gx, W - o.w))
+      y = Math.max(0, Math.min(gy, H - o.h))
       updateFrame(page.id, dragging.id, { x: Math.round(x), y: Math.round(y) })
+      setDragging({ ...dragging, guide })
     } else {
       let x = o.x, y = o.y, w = o.w, h = o.h
       if (dragging.dir?.includes('e')) w = o.w + dx
@@ -62,6 +84,7 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
   }
 
   const onPointerUp = () => setDragging(null)
+  const clearGuide = () => setDragging(d => d ? { ...d, guide: undefined } : d)
 
   const hs = 14 // handle size
 
@@ -119,6 +142,14 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
           </g>
         )
       })}
+      {dragging?.guide?.vertical !== undefined && (
+        <line x1={dragging.guide.vertical} y1={0} x2={dragging.guide.vertical} y2={H}
+          stroke="#818cf8" strokeWidth={1} strokeDasharray="4,4" pointerEvents="none" />
+      )}
+      {dragging?.guide?.horizontal !== undefined && (
+        <line x1={0} y1={dragging.guide.horizontal} x2={W} y2={dragging.guide.horizontal}
+          stroke="#818cf8" strokeWidth={1} strokeDasharray="4,4" pointerEvents="none" />
+      )}
     </svg>
   )
 }
