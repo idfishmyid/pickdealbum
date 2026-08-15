@@ -223,7 +223,10 @@ export default function App() {
     const r = ph.width / Math.max(1, ph.height)
     const w = Math.min((spec.width - m.margin * 2) * 0.9, (spec.height - m.margin * 2) * 0.75 * r)
     const h = w / r
-    addFrameToPage(targetPageId, photoId, Math.round(Math.max(m.margin, Math.min(x - w / 2, spec.width - m.margin - w))), Math.round(Math.max(m.margin, Math.min(y - h / 2, spec.height - m.margin - h))), Math.round(w), Math.round(h))
+    const frameX = Math.round(Math.max(m.margin, Math.min(x - w / 2, spec.width - m.margin - w)))
+    const frameY = Math.round(Math.max(m.margin, Math.min(y - h / 2, spec.height - m.margin - h)))
+    console.log('frame computed:', { frameX, frameY, w, h, specWidth: spec.width, specHeight: spec.height, margin: m.margin })
+    addFrameToPage(targetPageId, photoId, frameX, frameY, Math.round(w), Math.round(h))
     // clear visual highlight
     e.currentTarget.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-2', 'ring-offset-white')
   }
