@@ -198,24 +198,33 @@ export default function App() {
   }
 
   const onCanvasDrop = (e: React.DragEvent, targetPageId: string) => {
+    console.log('onCanvasDrop fired', { targetPageId, types: e.dataTransfer.types })
     e.preventDefault()
     // Accept both mime types — image drags sometimes lose text/plain in Chromium
     const photoId = e.dataTransfer.getData('application/x-pickdeal-photo') || e.dataTransfer.getData('text/plain')
+    console.log('photoId from drag:', photoId)
     if (!photoId) return
     // drop now attaches to the SVG element directly, so currentTarget may be the SVG
     const el = e.currentTarget as Element
+    console.log('currentTarget:', el.tagName, el instanceof SVGElement ? 'SVG' : 'Element')
     const rect = el instanceof SVGElement ? el.getBoundingClientRect() : el.querySelector('svg')?.getBoundingClientRect()
+    console.log('rect:', rect)
     if (!rect) return
     const spec = project!.pageSpec
     const scale = rect.width / spec.width // page-space px per screen px at current zoom
     const x = (e.clientX - rect.left) / scale
     const y = (e.clientY - rect.top) / scale
+    console.log('pos:', { x, y })
     const ph = project?.photos.find(p => p.id === photoId)
-    if (!ph) return
+    if (!ph) {
+      console.log('photo not found in project:', photoId, 'available:', project?.photos.map(p => p.id))
+      return
+    }
     const m = project!.defaultStyle
     const r = ph.width / Math.max(1, ph.height)
     const w = Math.min((spec.width - m.margin * 2) * 0.9, (spec.height - m.margin * 2) * 0.75 * r)
     const h = w / r
+    console.log('adding frame:', { photoId, x, y, w, h })
     addFrameToPage(targetPageId, photoId, Math.round(Math.max(m.margin, Math.min(x - w / 2, spec.width - m.margin - w))), Math.round(Math.max(m.margin, Math.min(y - h / 2, spec.height - m.margin - h))), Math.round(w), Math.round(h))
     // clear visual highlight
     e.currentTarget.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-2', 'ring-offset-white')
