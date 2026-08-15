@@ -401,7 +401,7 @@ export default function App() {
         </aside>
 
         {/* Canvas — pages filmstrip */}
-        <section ref={canvasRef} className="overflow-auto p-4 flex flex-col gap-3 items-start" onDragOver={e => e.preventDefault()} onDrop={onCanvasDrop}>
+        <section ref={canvasRef} className="overflow-auto p-4 flex flex-row flex-wrap gap-3 content-start" onDragOver={e => e.preventDefault()} onDrop={onCanvasDrop}>
           {ch.pages.map((pg, i) => (
             <div key={pg.id} onClick={() => selectPage(pg.id)}
               className={`ring-1 ${pg.id === page.id ? 'ring-indigo-500' : 'ring-transparent'} rounded overflow-hidden`}>
