@@ -149,6 +149,8 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap, on
     >
       {page.frames.map((f) => {
         const selected = selSet(f.id)
+        const thumb = thumbnails.get(f.photoId) || loadedThumbnails.get(f.photoId)
+        if (!thumb && page.frames.length > 1) console.log('Frame render:', f.id, 'photoId:', f.photoId, 'thumb:', !!thumb, 'loaded:', !!loadedThumbnails.get(f.photoId))
         return (
           <g key={f.id}>
             {/* frame body: image or placeholder */}
