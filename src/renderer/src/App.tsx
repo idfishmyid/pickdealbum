@@ -237,8 +237,6 @@ export default function App() {
     } finally { setExporting(false) }
   }
 
-  if (!project || !ch || !page) return <div className="h-screen bg-neutral-900 text-neutral-200 flex items-center justify-center">Loading…</div>
-
   if (showHome) {
     return (
       <div className="h-screen bg-neutral-900 text-neutral-100 flex flex-col">
@@ -303,6 +301,8 @@ export default function App() {
     )
   }
 
+  if (!project || !ch || !page) return <div className="h-screen bg-neutral-900 text-neutral-200 flex items-center justify-center">Loading…</div>
+
   return (
     <div className="h-screen flex flex-col bg-neutral-900 text-neutral-100">
       {/* Toolbar */}
@@ -326,6 +326,7 @@ export default function App() {
         </div>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={saveProject}>Save</button>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={handleImport}>Import Photos</button>
+        <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={() => { setShowHome(true) }} title="Back to projects">← Projects</button>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40" onClick={() => handleExport('jpg')} disabled={exporting}>Export JPG</button>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40" onClick={() => handleExport('png')} disabled={exporting}>Export PNG</button>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40" onClick={() => handleExport('pdf')} disabled={exporting}>Export PDF</button>
