@@ -11,14 +11,16 @@ const uid = (p: string) => `${p}_${(Date.now().toString(36))}_${(uidCounter++).t
 
 const snapshot = (p: Project): Project => JSON.parse(JSON.stringify(p))
 
-function makeProject(opts: { name?: string; width?: number; height?: number; dpi?: number } = {}): Project {
+function makeProject(opts: { name?: string; width?: number; height?: number; dpi?: number; pageCount?: number } = {}): Project {
   const now = new Date().toISOString()
   const chId = uid('ch')
+  const count = Math.max(1, opts.pageCount || 1)
+  const pages = Array.from({ length: count }, () => ({ id: uid('pg'), frames: [] }))
   return {
     id: uid('prj'), name: opts.name || 'Untitled Album', version: '1.0.0', createdAt: now, updatedAt: now,
     pageSpec: { width: opts.width || 3035, height: opts.height || 4054, dpi: opts.dpi || 300, bleed: 30, background: '#FFFFFF' },
     defaultStyle: { margin: 120, gap: 20, frameStroke: 0, frameFill: '#0A0A0A' },
-    chapters: [{ id: chId, title: 'Chapter 1', order: 0, photoRefs: [], pages: [{ id: uid('pg'), frames: [] }] }],
+    chapters: [{ id: chId, title: 'Chapter 1', order: 0, photoRefs: [], pages }],
     exportSettings: { format: 'jpg', quality: 92, colorProfile: 'sRGB', outputDir: '', flattenTwoPageSpread: false },
     photos: [],
   }
@@ -67,7 +69,7 @@ interface EditorState {
   future: HistoryEntry[]
 
   loadProject: (p: Project) => void
-  newProject: (opts?: { name?: string; width?: number; height?: number; dpi?: number }) => void
+  newProject: (opts?: { name?: string; width?: number; height?: number; dpi?: number; pageCount?: number }) => void
   addChapter: () => void
   renameChapter: (id: string, title: string) => void
   selectChapter: (id: string) => void

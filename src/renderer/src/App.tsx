@@ -54,6 +54,7 @@ export default function App() {
   const [npH, setNpH] = useState('40')
   const [npUnit, setNpUnit] = useState<'cm' | 'in' | 'px'>('cm')
   const [npDpi, setNpDpi] = useState('300')
+  const [npPages, setNpPages] = useState('1')
   const booted = useRef(false)
   const canvasRef = useRef<HTMLElement | null>(null)
   const [canvasW, setCanvasW] = useState(800)
@@ -63,7 +64,7 @@ export default function App() {
     let w = parseFloat(npW) || 30, h = parseFloat(npH) || 40
     if (npUnit === 'cm') { w = Math.round(w * dpi / 2.54); h = Math.round(h * dpi / 2.54) }
     else if (npUnit === 'in') { w = Math.round(w * dpi); h = Math.round(h * dpi) }
-    newProject({ name: npName || 'Untitled Album', width: w, height: h, dpi })
+    newProject({ name: npName || 'Untitled Album', width: w, height: h, dpi, pageCount: parseInt(npPages) || 1 })
     setShowNewDlg(false)
     setShowHome(false)
   }
@@ -499,6 +500,10 @@ export default function App() {
                   value={npDpi} onChange={e => setNpDpi(e.target.value)} />
               </label>
             </div>
+            <label className="block text-xs mb-3">Number of Pages
+              <input type="number" min="1" className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
+                value={npPages} onChange={e => setNpPages(e.target.value)} />
+            </label>
             <div className="flex justify-end gap-2 mt-4">
               <button className="px-3 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-sm" onClick={() => setShowNewDlg(false)}>Cancel</button>
               <button className="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-sm font-medium" onClick={createProject}>Create</button>
