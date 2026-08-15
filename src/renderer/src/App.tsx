@@ -5,9 +5,10 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import type { Project } from '../../../shared/types.js'
+import type { Page, Project } from '../../../shared/types.js'
 import { useEditor } from './store/editor.js'
 import { CanvasPage } from './components/CanvasPage.js'
+import { AppLayout } from './components/AppLayout.js'
 
 const api = (window as any).electronAPI as {
   project: {
@@ -38,16 +39,13 @@ export default function App() {
   const {
     project, currentChapterId, currentPageId, selectedFrameId,
     history, future, loadProject, newProject, addChapter, selectChapter, renameChapter,
-    addPhotos, removePhoto, addFrameToPage, selectPage, selectFrame, updateFrame, removeFrame, swapFrames, splitPage, replaceChapterPages, undo, redo,
+    addPhotos, removePhoto, addFrameToPage, selectPage, swapFrames, splitPage, replaceChapterPages, undo, redo,
   } = useEditor()
   const [photoError, setPhotoError] = useState('')
   const [thumbnails, setThumbnails] = useState<Map<string, string>>(new Map())
-  const [showOpenList, setShowOpenList] = useState(false)
   const [zoom, setZoom] = useState(1.5) // page preview zoom multiplier
-  const [projectList, setProjectList] = useState<{ id: string; name: string; updatedAt: number }[]>([])
   const [swapTargetId, setSwapTargetId] = useState<string | null>(null)
   const [editingChapterId, setEditingChapterId] = useState<string | null>(null)
-  const [dragPhotoId, setDragPhotoId] = useState<string | null>(null)
   const [showNewDlg, setShowNewDlg] = useState(false)
   const [npName, setNpName] = useState('Untitled Album')
   const [npW, setNpW] = useState('30')
@@ -56,8 +54,9 @@ export default function App() {
   const [npDpi, setNpDpi] = useState('300')
   const [npPages, setNpPages] = useState('1')
   const booted = useRef(false)
-  const canvasRef = useRef<HTMLElement | null>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
   const [canvasW, setCanvasW] = useState(800)
+  const [spreadIdx, setSpreadIdx] = useState(0)
 
   const createProject = () => {
     const dpi = Math.max(72, parseInt(npDpi) || 300)
@@ -92,12 +91,7 @@ export default function App() {
     return () => clearTimeout(t)
   }, [project])
 
-  const saveProject = async () => {
-    if (!project) return
-    await api.project.save(project)
-  }
-
-  // responsive canvas: track filmstrip container width so page preview scales with window
+  // responsive canvas: track spread container width so page preview scales with window
   useEffect(() => {
     const el = canvasRef.current
     if (!el) return
@@ -136,17 +130,10 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const openProjectList = async () => {
-    const list = await api.project.list()
-    setProjectList(list)
-    setShowOpenList(v => !v)
-  }
-
   const openProject = async (id: string) => {
     const p = await api.project.get(id)
     if (p) {
       loadProject(p)
-      setShowOpenList(false)
       setShowHome(false)
       // reload cached thumbnails for this project
       const map = new Map<string, string>()
@@ -210,22 +197,23 @@ export default function App() {
     if (result.warnings.length) setPhotoError(result.warnings.map((w: any) => w.message).join('; '))
   }
 
-  const onCanvasDrop = (e: React.DragEvent) => {
+  const onCanvasDrop = (e: React.DragEvent, targetPageId: string) => {
     e.preventDefault()
     const photoId = e.dataTransfer.getData('text/plain')
-    if (!photoId || !page) return
+    if (!photoId) return
     const rect = (e.currentTarget as HTMLElement).querySelector('svg')?.getBoundingClientRect()
     if (!rect) return
-    const SCALE = 0.5
-    const x = (e.clientX - rect.left) / SCALE
-    const y = (e.clientY - rect.top) / SCALE
+    const spec = project!.pageSpec
+    const scale = rect.width / spec.width // page-space px per screen px at current zoom
+    const x = (e.clientX - rect.left) / scale
+    const y = (e.clientY - rect.top) / scale
     const ph = project?.photos.find(p => p.id === photoId)
     if (!ph) return
-    const spec = project!.pageSpec, m = project!.defaultStyle
+    const m = project!.defaultStyle
     const r = ph.width / Math.max(1, ph.height)
     const w = Math.min((spec.width - m.margin * 2) * 0.9, (spec.height - m.margin * 2) * 0.75 * r)
     const h = w / r
-    addFrameToPage(page.id, photoId, Math.round(Math.max(m.margin, Math.min(x - w / 2, spec.width - m.margin - w))), Math.round(Math.max(m.margin, Math.min(y - h / 2, spec.height - m.margin - h))), Math.round(w), Math.round(h))
+    addFrameToPage(targetPageId, photoId, Math.round(Math.max(m.margin, Math.min(x - w / 2, spec.width - m.margin - w))), Math.round(Math.max(m.margin, Math.min(y - h / 2, spec.height - m.margin - h))), Math.round(w), Math.round(h))
   }
 
   const handleExport = async (format: 'jpg' | 'png' | 'pdf') => {
@@ -319,198 +307,146 @@ export default function App() {
   if (!project || !ch || !page) return <div className="h-screen bg-neutral-900 text-neutral-200 flex items-center justify-center">Loading…</div>
 
   return (
-    <div className="h-screen flex flex-col bg-neutral-900 text-neutral-100">
-      {/* Toolbar */}
-      <header className="px-3 py-2 border-b border-neutral-800 flex items-center gap-2 text-sm shrink-0">
-        <span className="font-semibold mr-2">PickDeAlbum</span>
-        <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={() => setShowNewDlg(true)}>New</button>
-        <div className="relative">
-          <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={openProjectList}>Open</button>
-          {showOpenList && (
-            <div className="absolute top-full left-0 mt-1 bg-neutral-800 border border-neutral-700 rounded shadow-lg z-50 min-w-56 max-h-72 overflow-auto">
-              {projectList.length === 0 && <div className="px-3 py-2 text-xs text-neutral-400">No saved projects</div>}
-              {projectList.map(p => (
-                <button key={p.id} className="block w-full text-left px-3 py-1.5 hover:bg-neutral-700 text-xs truncate"
-                  onClick={() => openProject(p.id)}>
-                  {p.name}
-                  <span className="text-neutral-500 ml-2">{new Date(p.updatedAt).toLocaleDateString()}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={saveProject}>Save</button>
-        <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={handleImport}>Import Photos</button>
-        <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={() => { setShowHome(true) }} title="Back to projects">← Projects</button>
-        <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40" onClick={() => handleExport('jpg')} disabled={exporting}>Export JPG</button>
-        <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40" onClick={() => handleExport('png')} disabled={exporting}>Export PNG</button>
-        <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40" onClick={() => handleExport('pdf')} disabled={exporting}>Export PDF</button>
-        <div className="flex-1" />
-        <div className="flex items-center gap-1" title="Canvas zoom">
-          <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={() => setZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))}>−</button>
-          <span className="w-14 text-center text-xs text-neutral-400 select-none">{Math.round(zoom * 100)}%</span>
-          <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={() => setZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))}>+</button>
-        </div>
-        <button className="px-2 py-1 rounded bg-neutral-700 disabled:opacity-40" onClick={undo} disabled={!history.length}>Undo</button>
-        <button className="px-2 py-1 rounded bg-neutral-700 disabled:opacity-40" onClick={redo} disabled={!future.length}>Redo</button>
-      </header>
-
-      {(photoError || exportMsg) && <div className="px-3 py-1 text-xs text-red-400 bg-red-950/50">{photoError || exportMsg}</div>}
-
-      <main className="flex-1 grid grid-cols-[200px_1fr_240px] overflow-hidden">
-        {/* Chapter sidebar */}
-        <aside className="border-r border-neutral-800 overflow-auto p-2 text-sm">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-neutral-400 uppercase">Chapters</span>
-            <button className="text-xs text-neutral-300 hover:text-white" onClick={addChapter}>+</button>
-          </div>
-          {project.chapters.map(c => (
-            <div key={c.id} className={`px-2 py-1 rounded cursor-pointer flex items-center justify-between ${c.id === ch.id ? 'bg-indigo-600' : 'hover:bg-neutral-800'}`}
-              onClick={() => { selectChapter(c.id); if (editingChapterId !== c.id) setEditingChapterId(null) }}>
-              {editingChapterId === c.id ? (
-                <input autoFocus className="flex-1 bg-neutral-900 border border-indigo-500 rounded px-1 py-0.5 text-xs"
-                  defaultValue={c.title}
-                  onBlur={e => { renameChapter(c.id, e.target.value || c.title); setEditingChapterId(null) }}
-                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-                  onClick={e => e.stopPropagation()} />
-              ) : (
-                <span className="truncate" onDoubleClick={e => { e.stopPropagation(); setEditingChapterId(c.id) }}>{c.title}</span>
-              )}
-              <span className="text-xs text-neutral-300 ml-1">{c.pages.length}p</span>
-            </div>
-          ))}
-          {/* Photo list per chapter */}
-          <div className="mt-3">
-            <span className="text-xs text-neutral-400 uppercase">Photos</span>
-            <div className="mt-1 space-y-0.5">
-              {ch.photoRefs.map(pid => {
-                const ph = project.photos.find(p => p.id === pid)
-                if (!ph) return null
-                return (
-                  <div key={pid} draggable onDragStart={e => e.dataTransfer.setData('text/plain', pid)} className="px-1 py-0.5 rounded hover:bg-neutral-800 flex items-center gap-1.5 group text-xs cursor-grab">
-                    {thumbnails.get(pid) && (
-                      <img src={`data:image/webp;base64,${thumbnails.get(pid)}`} alt="" className="w-5 h-5 object-cover rounded shrink-0" />
-                    )}
-                    <span className="truncate flex-1">{ph.sourcePath?.split(/[\\/]/).pop() ?? pid}</span>
-                    <button className="text-neutral-500 hover:text-red-400 opacity-0 group-hover:opacity-100" onClick={() => removePhoto(pid)}>×</button>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </aside>
-
-        {/* Canvas — pages filmstrip */}
-        <section ref={canvasRef} className="overflow-auto p-4 flex flex-row flex-wrap gap-3 content-start" onDragOver={e => e.preventDefault()} onDrop={onCanvasDrop}>
-          {ch.pages.map((pg, i) => (
-            <div key={pg.id} onClick={() => selectPage(pg.id)}
-              className={`ring-1 ${pg.id === page.id ? 'ring-indigo-500' : 'ring-transparent'} rounded overflow-hidden`}>
-              <div className="text-[10px] text-neutral-400 text-center py-0.5 bg-neutral-800">Page {i + 1} · {pg.frames.length} photo{pg.frames.length === 1 ? '' : 's'}</div>
-              <CanvasPage project={project} page={pg} thumbnails={thumbnails}
-                  swapTargetId={swapTargetId} onSwap={(a, b) => { swapFrames(pg.id, a, b); setSwapTargetId(null) }}
-                  previewW={Math.max(200, Math.round(canvasW * zoom))} />
-            </div>
-          ))}
-        </section>
-
-        {/* Properties panel */}
-        <aside className="border-l border-neutral-800 overflow-auto p-3 text-sm space-y-4">
-          <div>
-            <div className="text-xs text-neutral-400 uppercase mb-1">Auto Layout</div>
-            <div className="flex gap-1 mt-1">
-              {(['auto', 'single', 'two-up', 'four-up'] as const).map(g => (
-                <button key={g} className={`px-2 py-0.5 rounded text-xs ${autoGrid === g ? 'bg-indigo-600' : 'bg-neutral-700 hover:bg-neutral-600'}`}
-                  onClick={() => setAutoGrid(g)}>{g}</button>
-              ))}
-            </div>
-            <div className="flex gap-1 mt-1">
-              {(['contain', 'cover'] as const).map(f => (
-                <button key={f} className={`px-2 py-0.5 rounded text-xs ${autoFit === f ? 'bg-indigo-600' : 'bg-neutral-700 hover:bg-neutral-600'}`}
-                  onClick={() => setAutoFit(f)}>
-                  {f === 'contain' ? 'Fit (no crop)' : 'Fill (crop)'}
-                </button>
-              ))}
-            </div>
-            <button className="mt-2 px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 w-full text-sm font-medium"
-              onClick={handleAutoLayout} disabled={!ch?.photoRefs.length}>Auto Layout Chapter</button>
-
-            <div className="text-xs text-neutral-400 uppercase mt-4 mb-1">Page</div>
-            <div className="text-neutral-300 text-xs">{page.frames.length} frames</div>
-            <button className="mt-2 px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 w-full"
-              onClick={() => splitPage(ch.id, page.id)}
-              disabled={page.frames.length <= 2}>Split page ({page.frames.length} → 2 + rest)</button>
-          </div>
-
-          {selectedFrame && (
-            <div>
-              <div className="text-xs text-neutral-400 uppercase mb-1">Selected Frame</div>
-              {([
-                ['X', 'x'], ['Y', 'y'], ['W', 'w'], ['H', 'h'],
-              ] as const).map(([label, key]) => (
-                <label key={key} className="block text-xs">
-                  {label} <input type="number" className="w-full mt-0.5 px-1 py-0.5 rounded bg-neutral-800 border border-neutral-700"
-                    value={selectedFrame[key]} onChange={e => updateFrame(page.id, selectedFrame.id, { [key]: +e.target.value } as any)} />
-                </label>
-              ))}
-              <label className="block text-xs mt-1">Caption
-                <input className="w-full mt-0.5 px-1 py-0.5 rounded bg-neutral-800 border border-neutral-700 text-xs"
-                  defaultValue={selectedFrame.caption ?? ''} placeholder="Caption / index…"
-                  onBlur={e => { const v = e.target.value; if (v !== (selectedFrame.caption ?? '')) updateFrame(page.id, selectedFrame.id, { caption: v || null }) }} />
-              </label>
-              <button className="mt-2 px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 w-full"
-                onClick={() => setSwapTargetId(swapTargetId === selectedFrame.id ? null : selectedFrame.id)}>
-                {swapTargetId === selectedFrame.id ? 'Click a frame to swap with' : 'Swap with another frame…'}
+    <AppLayout
+      projectName={project.name}
+      sheetInfo={`${(project.pageSpec.width / (project.pageSpec.dpi || 300)).toFixed(0)}×${(project.pageSpec.height / (project.pageSpec.dpi || 300)).toFixed(0)} / ${ch.pages.length} page${ch.pages.length === 1 ? '' : 's'}`}
+      canUndo={history.length > 0}
+      canRedo={future.length > 0}
+      onUndo={undo}
+      onRedo={redo}
+      onExport={() => handleExport('jpg')}
+      onProofing={() => setExportMsg('Proofing — not implemented yet')}
+      notice={photoError || exportMsg}
+      chapterTabs={
+        <>
+          {project.chapters.map(c => {
+            const isCh = c.id === ch.id
+            const cur = project.chapters.find(x => x.id === currentChapterId) ?? project.chapters[0]
+            return (
+              <button key={c.id}
+                className={`px-3 py-1.5 text-xs whitespace-nowrap border-b-2 ${isCh ? 'border-neutral-800 text-neutral-900' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
+                onClick={() => { selectChapter(c.id); if (editingChapterId !== c.id) setEditingChapterId(null) }}
+                onDoubleClick={e => { e.stopPropagation(); setEditingChapterId(c.id) }}>
+                {editingChapterId === c.id ? (
+                  <input autoFocus className="w-24 bg-gray-50 border border-gray-300 rounded px-1 py-0.5 text-xs"
+                    defaultValue={c.title}
+                    onBlur={e => { renameChapter(c.id, e.target.value || c.title); setEditingChapterId(null) }}
+                    onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                    onClick={e => e.stopPropagation()} />
+                ) : <>{c.title} <span className="text-gray-400">{c.pages.length}</span></>}
               </button>
-              <button className="mt-1 px-2 py-1 rounded bg-red-900/60 hover:bg-red-800 w-full" onClick={() => removeFrame(page.id, selectedFrame.id)}>Remove photo</button>
-            </div>
+            )
+          })}
+          <button className="px-2 py-1.5 text-xs text-gray-400 hover:text-gray-700" title="Add chapter" onClick={addChapter}>＋</button>
+        </>
+      }
+      photoTray={
+        <>
+          {ch.photoRefs.length === 0 && (
+            <button onClick={handleImport} className="shrink-0 px-3 h-20 rounded border border-dashed border-gray-300 text-xs text-gray-400 hover:border-neutral-400 hover:text-gray-600">
+              ＋ Import photos
+            </button>
           )}
-        </aside>
-      </main>
-
-      {/* New Project dialog */}
-      {showNewDlg && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowNewDlg(false)}>
-          <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-5 w-96 shadow-xl" onClick={e => e.stopPropagation()}>
-            <h2 className="text-sm font-semibold mb-4">New Project</h2>
-            <label className="block text-xs mb-3">Project Name
-              <input className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
-                value={npName} onChange={e => setNpName(e.target.value)} />
-            </label>
-            <div className="flex gap-2 mb-3">
-              <label className="block text-xs flex-1">Width
-                <input className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
-                  value={npW} onChange={e => setNpW(e.target.value)} />
-              </label>
-              <label className="block text-xs flex-1">Height
-                <input className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
-                  value={npH} onChange={e => setNpH(e.target.value)} />
-              </label>
-            </div>
-            <div className="flex gap-2 mb-3">
-              <label className="block text-xs flex-1">Unit
-                <select className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
-                  value={npUnit} onChange={e => setNpUnit(e.target.value as any)}>
-                  <option value="cm">cm</option>
-                  <option value="in">inch</option>
-                  <option value="px">pixel</option>
-                </select>
-              </label>
-              <label className="block text-xs flex-1">Resolution (DPI)
-                <input className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
-                  value={npDpi} onChange={e => setNpDpi(e.target.value)} />
-              </label>
-            </div>
-            <label className="block text-xs mb-3">Number of Pages
-              <input type="number" min="1" className="w-full mt-1 px-2 py-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
-                value={npPages} onChange={e => setNpPages(e.target.value)} />
-            </label>
-            <div className="flex justify-end gap-2 mt-4">
-              <button className="px-3 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-sm" onClick={() => setShowNewDlg(false)}>Cancel</button>
-              <button className="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-sm font-medium" onClick={createProject}>Create</button>
-            </div>
-          </div>
+          {ch.photoRefs.map(pid => {
+            const ph = project.photos.find(p => p.id === pid)
+            if (!ph) return null
+            return (
+              <div key={pid} draggable onDragStart={e => e.dataTransfer.setData('text/plain', pid)}
+                className="shrink-0 w-20 h-20 rounded border border-gray-200 bg-gray-50 hover:border-neutral-400 cursor-grab relative group"
+                title={ph.sourcePath?.split(/[\\/]/).pop() ?? pid}>
+                {thumbnails.get(pid) ? (
+                  <img src={`data:image/webp;base64,${thumbnails.get(pid)}`} alt="" className="w-full h-full object-cover rounded" />
+                ) : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">…</div>}
+                <button className="absolute top-0 right-0 w-4 h-4 bg-black/40 text-white text-[10px] rounded-bl opacity-0 group-hover:opacity-100"
+                  onClick={() => removePhoto(pid)}>×</button>
+              </div>
+            )
+          })}
+        </>
+      }
+      toolbar={
+        <>
+          <ToolBtn label="Shuffle" glyph="⇄" onClick={handleAutoLayout} disabled={!ch?.photoRefs.length} />
+          <ToolBtn label="Split" glyph="‖" onClick={() => splitPage(ch.id, page.id)} disabled={page.frames.length <= 2} />
+          <div className="w-6 h-px bg-gray-200 my-1 mx-auto" />
+          <ToolBtn label="Fit (no crop)" glyph="⬐" active={autoFit === 'contain'} onClick={() => setAutoFit('contain')} />
+          <ToolBtn label="Fill (crop)" glyph="⬔" active={autoFit === 'cover'} onClick={() => setAutoFit('cover')} />
+          <div className="w-6 h-px bg-gray-200 my-1 mx-auto" />
+          <ToolBtn label="Grid: auto" glyph="▦" active={autoGrid === 'auto'} onClick={() => setAutoGrid('auto')} />
+          <ToolBtn label="Grid: 1" glyph="▢" active={autoGrid === 'single'} onClick={() => setAutoGrid('single')} />
+          <ToolBtn label="Grid: 2" glyph="▥" active={autoGrid === 'two-up'} onClick={() => setAutoGrid('two-up')} />
+          <ToolBtn label="Grid: 4" glyph="▤" active={autoGrid === 'four-up'} onClick={() => setAutoGrid('four-up')} />
+        </>
+      }
+      pages={
+        <div ref={canvasRef} className="flex flex-col items-center gap-4">
+          {/* Spread view */}
+          {(() => {
+            const left = ch.pages[spreadIdx * 2]
+            const right = ch.pages[spreadIdx * 2 + 1]
+            return (
+              <>
+                <div className="flex shadow-2xl rounded-sm overflow-hidden bg-white">
+                  {left ? (
+                    <div onClick={() => selectPage(left.id)}
+                      onDragOver={e => e.preventDefault()} onDrop={e => onCanvasDrop(e, left.id)}
+                      className={`relative ${left.id === page.id ? 'ring-2 ring-indigo-500 ring-inset' : ''}`}>
+                      <SpreadPage project={project} page={left} thumbnails={thumbnails}
+                        swapTargetId={swapTargetId} onSwap={(a, b) => { swapFrames(left.id, a, b); setSwapTargetId(null) }}
+                        previewW={Math.max(160, Math.round((canvasW - 80) / 2 * zoom))} />
+                    </div>
+                  ) : <div className="bg-gray-50 border border-dashed border-gray-300" style={{ width: Math.max(160, Math.round((canvasW - 80) / 2 * zoom)), aspectRatio: `${project.pageSpec.width}/${project.pageSpec.height}` }} />}
+                  {/* spine */}
+                  <div className="w-px bg-gray-300 relative z-10">
+                    <div className="absolute inset-y-0 -left-px w-2 -translate-x-1 bg-gradient-to-r from-black/10 to-transparent" />
+                    <div className="absolute inset-y-0 right-px w-2 translate-x-px bg-gradient-to-l from-black/10 to-transparent" />
+                  </div>
+                  {right ? (
+                    <div onClick={() => selectPage(right.id)}
+                      onDragOver={e => e.preventDefault()} onDrop={e => onCanvasDrop(e, right.id)}
+                      className={`relative ${right.id === page.id ? 'ring-2 ring-indigo-500 ring-inset' : ''}`}>
+                      <SpreadPage project={project} page={right} thumbnails={thumbnails}
+                        swapTargetId={swapTargetId} onSwap={(a, b) => { swapFrames(right.id, a, b); setSwapTargetId(null) }}
+                        previewW={Math.max(160, Math.round((canvasW - 80) / 2 * zoom))} />
+                    </div>
+                  ) : <div className="bg-gray-50 border border-dashed border-gray-300" style={{ width: Math.max(160, Math.round((canvasW - 80) / 2 * zoom)), aspectRatio: `${project.pageSpec.width}/${project.pageSpec.height}` }} />}
+                </div>
+                {/* spread navigation */}
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <button className="w-7 h-7 rounded border border-gray-300 hover:bg-gray-50" disabled={spreadIdx === 0} onClick={() => setSpreadIdx(i => Math.max(0, i - 1))}>←</button>
+                  <span>Spread {spreadIdx + 1} / {Math.ceil(ch.pages.length / 2)}</span>
+                  <button className="w-7 h-7 rounded border border-gray-300 hover:bg-gray-50" disabled={spreadIdx >= Math.ceil(ch.pages.length / 2) - 1} onClick={() => setSpreadIdx(i => i + 1)}>→</button>
+                </div>
+              </>
+            )
+          })()}
         </div>
-      )}
+      }
+    />
+  )
+}
+
+/** Floating toolbar button. */
+function ToolBtn({ label, glyph, onClick, active, disabled }: { label: string; glyph: string; onClick?: () => void; active?: boolean; disabled?: boolean }) {
+  return (
+    <button title={label} aria-label={label} disabled={disabled}
+      className={`w-10 h-10 flex items-center justify-center rounded-md transition-colors disabled:opacity-30
+        ${active ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:bg-neutral-200 hover:text-neutral-900'}`}
+      onClick={onClick}>
+      <span className="text-lg leading-none select-none">{glyph}</span>
+    </button>
+  )
+}
+
+/** A page used inside a spread — CanvasPage wrapped in white paper styling. */
+function SpreadPage({ project, page, thumbnails, swapTargetId, onSwap, previewW }: {
+  project: Project; page: Page; thumbnails: Map<string, string>
+  swapTargetId: string | null; onSwap: (a: string, b: string) => void; previewW: number
+}) {
+  return (
+    <div className="bg-white relative">
+      <CanvasPage project={project} page={page} thumbnails={thumbnails}
+        swapTargetId={swapTargetId} onSwap={onSwap} previewW={previewW} />
     </div>
   )
 }
