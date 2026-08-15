@@ -55,6 +55,8 @@ export default function App() {
   const [npUnit, setNpUnit] = useState<'cm' | 'in' | 'px'>('cm')
   const [npDpi, setNpDpi] = useState('300')
   const booted = useRef(false)
+  const canvasRef = useRef<HTMLElement | null>(null)
+  const [canvasW, setCanvasW] = useState(800)
 
   const createProject = () => {
     const dpi = Math.max(72, parseInt(npDpi) || 300)
@@ -93,6 +95,17 @@ export default function App() {
     if (!project) return
     await api.project.save(project)
   }
+
+  // responsive canvas: track filmstrip container width so page preview scales with window
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) setCanvasW(Math.round(e.contentRect.width))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [showHome])
 
   // keyboard: undo/redo, delete frame, arrow nudge
   useEffect(() => {
@@ -387,14 +400,14 @@ export default function App() {
         </aside>
 
         {/* Canvas — pages filmstrip */}
-        <section className="overflow-auto p-4 flex flex-col gap-3 items-start" onDragOver={e => e.preventDefault()} onDrop={onCanvasDrop}>
+        <section ref={canvasRef} className="overflow-auto p-4 flex flex-col gap-3 items-start" onDragOver={e => e.preventDefault()} onDrop={onCanvasDrop}>
           {ch.pages.map((pg, i) => (
             <div key={pg.id} onClick={() => selectPage(pg.id)}
               className={`ring-1 ${pg.id === page.id ? 'ring-indigo-500' : 'ring-transparent'} rounded overflow-hidden`}>
               <div className="text-[10px] text-neutral-400 text-center py-0.5 bg-neutral-800">Page {i + 1} · {pg.frames.length} photo{pg.frames.length === 1 ? '' : 's'}</div>
               <CanvasPage project={project} page={pg} thumbnails={thumbnails}
                   swapTargetId={swapTargetId} onSwap={(a, b) => { swapFrames(pg.id, a, b); setSwapTargetId(null) }}
-                  previewW={Math.max(200, Math.round(600 * zoom))} />
+                  previewW={Math.max(200, Math.round(canvasW * zoom))} />
             </div>
           ))}
         </section>
