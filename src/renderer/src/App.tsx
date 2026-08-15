@@ -227,6 +227,10 @@ export default function App() {
     const frameX = Math.round(Math.max(m.margin, Math.min(x - w / 2, spec.width - m.margin - w)))
     const frameY = Math.round(Math.max(m.margin, Math.min(y - h / 2, spec.height - m.margin - h)))
     console.log('frame computed:', { frameX, frameY, w, h, specWidth: spec.width, specHeight: spec.height, margin: m.margin })
+    const newFrame = (useEditor.getState().project?.chapters.find(ch => ch.pages.find(p => p.id === targetPageId))?.pages.find(p => p.id === targetPageId)?.frames ?? []).at(-1)
+    if (newFrame) {
+      useEditor.getState().selectFrame(newFrame.id)
+    }
     addFrameToPage(targetPageId, photoId, frameX, frameY, Math.round(w), Math.round(h))
     // clear visual highlight
     e.currentTarget.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-2', 'ring-offset-white')
