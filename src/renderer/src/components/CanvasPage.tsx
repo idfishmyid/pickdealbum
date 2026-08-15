@@ -23,10 +23,11 @@ type DragState = {
   guide?: Guide
 }
 
-export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap, previewW = 600 }: {
+export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap, onDrop, previewW = 600 }: {
   project: Project; page: Page; thumbnails: Map<string, string>
   swapTargetId: string | null
   onSwap: (a: string, b: string) => void
+  onDrop?: (e: React.DragEvent) => void
   previewW?: number
 }) {
   const { selectedFrameId, selectFrame, updateFrame } = useEditor()
