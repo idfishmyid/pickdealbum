@@ -199,7 +199,8 @@ export default function App() {
 
   const onCanvasDrop = (e: React.DragEvent, targetPageId: string) => {
     e.preventDefault()
-    const photoId = e.dataTransfer.getData('text/plain')
+    // Accept both mime types — image drags sometimes lose text/plain in Chromium
+    const photoId = e.dataTransfer.getData('application/x-pickdeal-photo') || e.dataTransfer.getData('text/plain')
     if (!photoId) return
     const rect = (e.currentTarget as HTMLElement).querySelector('svg')?.getBoundingClientRect()
     if (!rect) return
@@ -214,6 +215,18 @@ export default function App() {
     const w = Math.min((spec.width - m.margin * 2) * 0.9, (spec.height - m.margin * 2) * 0.75 * r)
     const h = w / r
     addFrameToPage(targetPageId, photoId, Math.round(Math.max(m.margin, Math.min(x - w / 2, spec.width - m.margin - w))), Math.round(Math.max(m.margin, Math.min(y - h / 2, spec.height - m.margin - h))), Math.round(w), Math.round(h))
+    // clear visual highlight
+    e.currentTarget.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-2', 'ring-offset-white')
+  }
+
+  const onCanvasDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    e.currentTarget.classList.add('ring-2', 'ring-indigo-500', 'ring-offset-2', 'ring-offset-white')
+  }
+
+  const onCanvasDragLeave = (e: React.DragEvent) => {
+    e.currentTarget.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-2', 'ring-offset-white')
   }
 
   const handleExport = async (format: 'jpg' | 'png' | 'pdf') => {
@@ -354,12 +367,20 @@ export default function App() {
           {ch.photoRefs.map(pid => {
             const ph = project.photos.find(p => p.id === pid)
             if (!ph) return null
+            const onDragStart = (e: React.DragEvent) => {
+              // set both mime types: Chromium/Electron image drags can eat text/plain alone
+              e.dataTransfer.setData('text/plain', pid)
+              e.dataTransfer.setData('application/x-pickdeal-photo', pid)
+              e.dataTransfer.effectAllowed = 'copy'
+            }
             return (
-              <div key={pid} draggable onDragStart={e => e.dataTransfer.setData('text/plain', pid)}
+              <div key={pid} draggable
+                onDragStart={onDragStart}
                 className="shrink-0 w-20 h-20 rounded border border-gray-200 bg-gray-50 hover:border-neutral-400 cursor-grab relative group"
                 title={ph.sourcePath?.split(/[\\/]/).pop() ?? pid}>
                 {thumbnails.get(pid) ? (
-                  <img src={`data:image/webp;base64,${thumbnails.get(pid)}`} alt="" className="w-full h-full object-cover rounded" />
+                  <img src={`data:image/webp;base64,${thumbnails.get(pid)}`} alt="" draggable={false}
+                    className="w-full h-full object-cover rounded pointer-events-none" />
                 ) : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">…</div>}
                 <button className="absolute top-0 right-0 w-4 h-4 bg-black/40 text-white text-[10px] rounded-bl opacity-0 group-hover:opacity-100"
                   onClick={() => removePhoto(pid)}>×</button>
@@ -393,8 +414,8 @@ export default function App() {
                 <div className="flex shadow-2xl rounded-sm overflow-hidden bg-white">
                   {left ? (
                     <div onClick={() => selectPage(left.id)}
-                      onDragOver={e => e.preventDefault()} onDrop={e => onCanvasDrop(e, left.id)}
-                      className={`relative ${left.id === page.id ? 'ring-2 ring-indigo-500 ring-inset' : ''}`}>
+                      onDragOver={onCanvasDragOver} onDragLeave={onCanvasDragLeave} onDrop={e => onCanvasDrop(e, left.id)}
+                      className={`relative transition-all ${left.id === page.id ? 'ring-2 ring-indigo-500 ring-inset' : ''}`}>
                       <SpreadPage project={project} page={left} thumbnails={thumbnails}
                         swapTargetId={swapTargetId} onSwap={(a, b) => { swapFrames(left.id, a, b); setSwapTargetId(null) }}
                         previewW={Math.max(160, Math.round((canvasW - 80) / 2 * zoom))} />
@@ -407,8 +428,8 @@ export default function App() {
                   </div>
                   {right ? (
                     <div onClick={() => selectPage(right.id)}
-                      onDragOver={e => e.preventDefault()} onDrop={e => onCanvasDrop(e, right.id)}
-                      className={`relative ${right.id === page.id ? 'ring-2 ring-indigo-500 ring-inset' : ''}`}>
+                      onDragOver={onCanvasDragOver} onDragLeave={onCanvasDragLeave} onDrop={e => onCanvasDrop(e, right.id)}
+                      className={`relative transition-all ${right.id === page.id ? 'ring-2 ring-indigo-500 ring-inset' : ''}`}>
                       <SpreadPage project={project} page={right} thumbnails={thumbnails}
                         swapTargetId={swapTargetId} onSwap={(a, b) => { swapFrames(right.id, a, b); setSwapTargetId(null) }}
                         previewW={Math.max(160, Math.round((canvasW - 80) / 2 * zoom))} />
