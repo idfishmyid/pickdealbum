@@ -206,10 +206,16 @@ export default function App() {
     if (!photoId) return
     // drop now attaches to the SVG element directly, so currentTarget may be the SVG
     const el = e.currentTarget as Element
-    console.log('currentTarget:', el.tagName, el instanceof SVGElement ? 'SVG' : 'Element')
-    const rect = el instanceof SVGElement ? el.getBoundingClientRect() : el.querySelector('svg')?.getBoundingClientRect()
-    console.log('rect:', rect)
-    if (!rect) return
+    // For SVG, we want the rect of its parent div (the wrapper) to avoid overflow-hidden issues
+    let rect: DOMRect | undefined
+    if (el instanceof SVGElement) {
+      const parentDiv = el.parentElement
+      rect = parentDiv?.getBoundingClientRect()
+    } else {
+      rect = el.querySelector('svg')?.parentElement?.getBoundingClientRect()
+    }
+    console.log('rect from parent div:', rect)
+    if (!rect || rect.width === 0) return
     const spec = project!.pageSpec
     const scale = rect.width / spec.width // page-space px per screen px at current zoom
     const x = (e.clientX - rect.left) / scale
