@@ -76,7 +76,8 @@ ipcMain.handle('export:highRes', async (_e, project: Project, srcMap: Record<str
   const bg = project.pageSpec.background
 
   if (format === 'pdf') {
-    const buf = await exportPdf(pages, spec, resolver, bg)
+    const pdfPages = pages.map(p => ({ pageId: p.id, frames: p.frames }))
+    const buf = await exportPdf(pdfPages, spec, resolver, bg)
     await fs.writeFile(outputPath, buf)
     return { path: outputPath, bytes: buf.length }
   }

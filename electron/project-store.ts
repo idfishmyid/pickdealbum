@@ -154,13 +154,13 @@ function selfCheck() {
   const store = new Store(':memory:')
 
   const p = store.createProject('Test Project')
-  assert(p.id && p.name === 'Test Project', 'createProject returns project')
+  assert(!!(p.id && p.name === 'Test Project'), 'createProject returns project')
 
   const got = store.getProject(p.id)
-  assert(got && got.id === p.id, 'getProject retrieves')
+  assert(!!(got && got.id === p.id), 'getProject retrieves')
 
   const list = store.listProjects()
-  assert(list.some(x => x.id === p.id), 'listProjects includes')
+  assert(!!list.some(x => x.id === p.id), 'listProjects includes')
 
   p.name = 'Renamed'
   store.saveProject(p)
@@ -168,12 +168,12 @@ function selfCheck() {
   assert(updated?.name === 'Renamed', 'saveProject persists')
 
   const recents = store.getRecentProjects()
-  assert(recents.some(r => r.id === p.id), 'recent tracked')
+  assert(!!recents.some(r => r.id === p.id), 'recent tracked')
 
   const thumb: ThumbnailData = { data: Buffer.from('fake'), width: 100, height: 100, mimetype: 'image/webp' }
   store.setThumbnail(p.id, 'photo1', thumb)
   const t2 = store.getThumbnail(p.id, 'photo1')
-  assert(t2 && t2.width === 100, 'thumbnail roundtrip')
+  assert(!!(t2 && t2.width === 100), 'thumbnail roundtrip')
 
   store.deleteProject(p.id)
   assert(store.getProject(p.id) === null, 'deleteProject removes')

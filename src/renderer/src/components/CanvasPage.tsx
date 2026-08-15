@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react'
-import type { Page, Project, Frame } from '../../../shared/types.js'
+import type { Page, Project, Frame } from '../../../../shared/types.js'
 import { useEditor } from '../store/editor.js'
 
 const PREVIEW_W = 600
@@ -91,7 +91,7 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap }: 
             />
             {thumbnails.get(f.photoId) && (
               <foreignObject x={f.x} y={f.y} width={f.w} height={f.h} pointerEvents="none">
-                <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
                   <img src={`data:image/webp;base64,${thumbnails.get(f.photoId)}`} alt=""
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 </div>

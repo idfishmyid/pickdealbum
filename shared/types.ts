@@ -11,8 +11,11 @@ export interface Frame {
   x: number; y: number; w: number; h: number
   rotation: number; zIndex: number
   crop: CropRect; fit: Fit
+  caption?: string | null
 }
 export interface RenderPage { id: string; frames: Frame[] }
+/** Alias used by editor UI. Same shape as RenderPage. */
+export type Page = RenderPage
 export interface Warning { pageId: string; message: string }
 export interface LayoutInput {
   photos: Photo[]; pageSpec: PageSpec

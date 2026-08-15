@@ -6,3 +6,5 @@ dist/
 *.tmp*
 Screenshot_*.png
 *.png
+.loopx/
+.codex/goals/

@@ -16,7 +16,11 @@ const api = (window as any).electronAPI as {
     list: () => Promise<{ id: string; name: string; createdAt: number; updatedAt: number }[]>
     get: (id: string) => Promise<Project | null>
   }
-  dialog: { openFiles: () => Promise<string[]> }
+  dialog: {
+    openFiles: () => Promise<string[]>
+    saveFile: (defaultName: string) => Promise<string | null>
+    openDirectory: () => Promise<string | null>
+  }
   photos: {
     importFiles: (f: string[]) => Promise<{ id: string; sourcePath: string }[]>
     makeThumbnail: (projectId: string, photoId: string, srcPath: string) => Promise<{ width: number; height: number }>
@@ -27,10 +31,6 @@ const api = (window as any).electronAPI as {
   }
   layout: {
     compute: (input: { photos: { id: string; width: number; height: number }[]; pageSpec: any; margins: any; gap: number; fitMode?: string; preferGrid?: string; autoBalance?: boolean }) => Promise<{ pages: { id: string; frames: any[] }[]; warnings: any[] }>
-  }
-  dialog: {
-    saveFile: (defaultName: string) => Promise<string | null>
-    openDirectory: () => Promise<string | null>
   }
 }
 

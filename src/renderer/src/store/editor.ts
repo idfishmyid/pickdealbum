@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand'
-import type { Project, Chapter, Page, Frame, Photo } from '../../../shared/types.js'
+import type { Project, Chapter, Page, Frame, Photo } from '../../../../shared/types.js'
 
 let uidCounter = 0
 const uid = (p: string) => `${p}_${(Date.now().toString(36))}_${(uidCounter++).toString(36)}`
