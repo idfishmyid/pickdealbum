@@ -128,6 +128,8 @@ export function CanvasPage({ project, page, thumbnails, swapTargetId, onSwap, on
     >
       {page.frames.map((f) => {
         const selected = selSet(f.id)
+        const hasThumbnail = thumbnails.has(f.photoId)
+        if (!hasThumbnail) console.log('Frame without thumbnail:', f.id, 'photoId:', f.photoId, 'has thumbnail:', hasThumbnail)
         return (
           <g key={f.id}>
             {/* frame body: image or placeholder */}
