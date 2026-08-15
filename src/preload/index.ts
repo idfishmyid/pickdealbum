@@ -21,7 +21,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     compute: (input: LayoutInput) => ipcRenderer.invoke('layout:compute', input),
   },
   export: {
-    highRes: (project: Project, srcMap: Record<string, string>, format: 'jpg' | 'pdf', outputPath: string) =>
+    highRes: (project: Project, srcMap: Record<string, string>, format: 'jpg' | 'png' | 'pdf', outputPath: string) =>
       ipcRenderer.invoke('export:highRes', project, srcMap, format, outputPath),
   },
   dialog: {

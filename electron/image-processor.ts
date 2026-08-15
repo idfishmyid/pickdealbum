@@ -42,6 +42,7 @@ export async function exportPage(
   srcResolver: (photoId: string) => string,
   background = '#FFFFFF',
   jpegQuality = 92,
+  format: 'jpg' | 'png' = 'jpg',
 ): Promise<{ pageId: string; buffer: Buffer }> {
   const layers = await Promise.all(frames.map(async (f) => {
     const src = srcResolver(f.photoId)
@@ -69,7 +70,10 @@ export async function exportPage(
     throw new Error(`exportPage: ${frames.length - resolved.length} frame(s) unresolvable`)
   }
   const base = sharp({ create: { width: pageSpec.width, height: pageSpec.height, channels: 3, background } })
-  const buffer = await base.composite(resolved).jpeg({ quality: jpegQuality }).toBuffer()
+  const composed = base.composite(resolved)
+  const buffer = format === 'png'
+    ? await composed.png().toBuffer()
+    : await composed.jpeg({ quality: jpegQuality }).toBuffer()
   return { pageId, buffer }
 }
 

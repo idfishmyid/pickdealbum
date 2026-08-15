@@ -69,7 +69,7 @@ ipcMain.handle('photos:getThumbnail', (_e, projectId: string, photoId: string) =
 ipcMain.handle('layout:compute', (_e, input: LayoutInput): LayoutResult => computeLayout(input))
 
 // ---- IPC: high-res export ----
-ipcMain.handle('export:highRes', async (_e, project: Project, srcMap: Record<string, string>, format: 'jpg' | 'pdf', outputPath: string) => {
+ipcMain.handle('export:highRes', async (_e, project: Project, srcMap: Record<string, string>, format: 'jpg' | 'png' | 'pdf', outputPath: string) => {
   const resolver = (photoId: string) => srcMap[photoId] ?? ''
   const pages = project.chapters.flatMap(ch => ch.pages)
   const spec: PageSpec = { width: project.pageSpec.width, height: project.pageSpec.height, dpi: project.pageSpec.dpi }
@@ -83,8 +83,8 @@ ipcMain.handle('export:highRes', async (_e, project: Project, srcMap: Record<str
   }
   const results = []
   for (const p of pages) {
-    const r = await exportPage(p.id, p.frames, spec, resolver, bg, project.exportSettings.quality)
-    const out = join(outputPath, `${p.id}.jpg`)
+    const r = await exportPage(p.id, p.frames, spec, resolver, bg, project.exportSettings.quality, format)
+    const out = join(outputPath, `${p.id}.${format}`)
     await fs.writeFile(out, r.buffer)
     results.push({ path: out, bytes: r.buffer.length })
   }

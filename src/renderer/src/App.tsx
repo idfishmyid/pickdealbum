@@ -27,7 +27,7 @@ const api = (window as any).electronAPI as {
     getThumbnail: (projectId: string, photoId: string) => Promise<{ data: string; width: number; height: number; mimetype: string } | null>
   }
   export: {
-    highRes: (project: Project, srcMap: Record<string, string>, format: 'jpg' | 'pdf', outputPath: string) => Promise<any>
+    highRes: (project: Project, srcMap: Record<string, string>, format: 'jpg' | 'png' | 'pdf', outputPath: string) => Promise<any>
   }
   layout: {
     compute: (input: { photos: { id: string; width: number; height: number }[]; pageSpec: any; margins: any; gap: number; fitMode?: string; preferGrid?: string; autoBalance?: boolean }) => Promise<{ pages: { id: string; frames: any[] }[]; warnings: any[] }>
@@ -174,7 +174,7 @@ export default function App() {
     addFrameToPage(page.id, photoId, Math.round(Math.max(m.margin, Math.min(x - w / 2, spec.width - m.margin - w))), Math.round(Math.max(m.margin, Math.min(y - h / 2, spec.height - m.margin - h))), Math.round(w), Math.round(h))
   }
 
-  const handleExport = async (format: 'jpg' | 'pdf') => {
+  const handleExport = async (format: 'jpg' | 'png' | 'pdf') => {
     if (!project) return
     setExporting(true); setExportMsg('')
     try {
@@ -185,13 +185,13 @@ export default function App() {
       if (!out) { setExporting(false); return }
       const srcMap: Record<string, string> = {}
       for (const ph of project.photos) if (ph.sourcePath) srcMap[ph.id] = ph.sourcePath
-      if (format === 'jpg') {
-        // JPG writes per-page files into chosen directory; saveFile returns dir path
-        const res = await api.export.highRes(project, srcMap, 'jpg', out)
-        setExportMsg(`Exported ${res.length} page(s) to ${out}`)
-      } else {
+      if (format === 'pdf') {
         const res = await api.export.highRes(project, srcMap, 'pdf', out)
         setExportMsg(`Exported PDF (${res.bytes} bytes)`)
+      } else {
+        // JPG/PNG writes per-page files into chosen directory; openDirectory returns dir path
+        const res = await api.export.highRes(project, srcMap, format, out)
+        setExportMsg(`Exported ${res.length} page(s) to ${out}`)
       }
     } catch (e: any) {
       setExportMsg(`Export failed: ${e?.message ?? e}`)
@@ -224,6 +224,7 @@ export default function App() {
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={saveProject}>Save</button>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600" onClick={handleImport}>Import Photos</button>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40" onClick={() => handleExport('jpg')} disabled={exporting}>Export JPG</button>
+        <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40" onClick={() => handleExport('png')} disabled={exporting}>Export PNG</button>
         <button className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40" onClick={() => handleExport('pdf')} disabled={exporting}>Export PDF</button>
         <div className="flex-1" />
         <button className="px-2 py-1 rounded bg-neutral-700 disabled:opacity-40" onClick={undo} disabled={!history.length}>Undo</button>
